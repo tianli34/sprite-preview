@@ -35,6 +35,18 @@
   .brand p{margin:2px 0 0;font-size:11.5px;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .grow{flex:1}
   .toolbar{display:flex;align-items:center;gap:10px;flex:none;flex-wrap:wrap;justify-content:flex-end}
+  .pathbar{
+    display:flex;align-items:center;gap:8px;min-width:0;max-width:38vw;flex:none;
+  }
+  .pathbar[hidden]{display:none}
+  .pathbar .pb-label{
+    flex:none;font-size:10px;letter-spacing:.08em;color:var(--dim);
+    border:1px solid var(--line2);border-radius:5px;padding:1px 6px;background:#161d27;
+  }
+  .pathbar .pb-text{
+    min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;user-select:text;
+    font-family:ui-monospace,Consolas,"Courier New",monospace;font-size:11.5px;color:#aeb9c7;
+  }
   .btn{
     appearance:none;border:1px solid var(--line2);background:#1b2330;border-radius:9px;
     padding:8px 13px;font-size:12.5px;transition:.15s border-color,.15s background,.15s color;
@@ -68,6 +80,7 @@
     font-size:10px;padding:2px 7px;letter-spacing:0;line-height:1.5;
   }
   .mini:hover{color:#ffb489;border-color:#4c3a30}
+  .mini.on{background:var(--accent-soft);border-color:rgba(255,122,61,.45);color:#ffb489}
   .side-block.grow-block{flex:1;display:flex;flex-direction:column;min-height:0}
   .atlas-list{padding:0 8px;overflow-y:auto;flex:1;min-height:0}
   .atlas-item{
@@ -80,6 +93,16 @@
   .atlas-item .ai b{display:block;font-size:12.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .atlas-item .ai span{display:block;font-size:10.5px;color:var(--dim);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .atlas-item.active .ai span{color:#c79a83}
+  .atlas-item .tags{display:flex;gap:4px;margin-top:3px}
+  .tag{
+    font-size:9.5px;line-height:1.5;padding:0 5px;border-radius:5px;
+    background:#1d2633;color:#8fa3b8;border:1px solid #27323f;
+  }
+  .tag.warn{background:#2a1d16;border-color:#4a3122;color:#e0a077}
+  .side-seg{display:flex;border:1px solid var(--line2);border-radius:8px;overflow:hidden;margin:0 12px 8px}
+  .side-seg button{flex:1;border:0;background:#161d27;color:var(--muted);padding:5px 0;font-size:11px}
+  .side-seg button + button{border-left:1px solid var(--line2)}
+  .side-seg button.on{background:var(--accent-soft);color:#ffb489}
   .del{
     border:0;background:transparent;color:var(--dim);font-size:15px;line-height:1;padding:4px 5px;border-radius:6px;flex:none;
   }
@@ -98,7 +121,6 @@
   .action-item .an{flex:1;font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .action-item.active .an{color:#ffb489;font-weight:600}
   .action-item .ac{font-size:10.5px;color:var(--dim);font-variant-numeric:tabular-nums}
-  .side-foot{padding:10px 16px 14px;font-size:10.5px;line-height:1.7;color:#5d6a7a;border-top:1px solid var(--line);flex:none}
   .side-empty{padding:8px 14px;font-size:11.5px;color:#5d6a7a;line-height:1.7}
 
   /* 查看区 */
@@ -266,6 +288,10 @@
     </div>
   </div>
   <div class="grow"></div>
+  <div class="pathbar" id="pathBar" hidden>
+    <span class="pb-label">导入路径</span>
+    <span class="pb-text" id="pathText"></span>
+  </div>
   <div class="toolbar">
     <div class="seg" id="bgSeg" title="背景">
       <button data-bg="dark" class="on">深色</button>
@@ -283,7 +309,16 @@
 <main>
   <aside>
     <div class="side-block grow-block">
-      <div class="side-title">图集 <span class="st-right"><em id="atlasCount">0</em><button class="mini" id="clearStore" title="清空所有图集和本地记忆">清空</button></span></div>
+      <div class="side-title"><span id="listTitle">角色组</span> <span class="st-right"><em id="atlasCount">0</em><button class="mini" id="clearStore" title="清空所有图集和本地记忆">清空</button></span></div>
+      <div class="side-seg" id="scopeSeg">
+        <button data-view="group" class="on">角色组</button>
+        <button data-view="atlas">单图集</button>
+      </div>
+      <div class="side-seg filter-seg" id="groupFilterSeg">
+        <button data-filter="all" class="on" title="显示全部角色组">全部</button>
+        <button data-filter="2" title="只显示由 2 个图集组成的角色组">2 图集</button>
+        <button data-filter="3+" title="只显示由 3 个及以上图集组成的角色组">3 图集以上</button>
+      </div>
       <div class="atlas-list" id="atlasList"></div>
       <div class="side-empty" id="atlasEmpty">尚未载入图集<br>拖入 plist + png 即可预览</div>
     </div>
@@ -291,10 +326,6 @@
       <div class="side-title">动作 <em id="actionCount"></em></div>
     </div>
     <div class="action-list" id="actionList"></div>
-    <div class="side-foot">
-      图集保存在本浏览器中，刷新或重开页面会自动恢复。<br>
-      帧名末尾数字作为帧序：<b style="color:#8f9daf;font-weight:500">attack8_0008 → attack8</b>
-    </div>
   </aside>
 
   <section class="viewer">
@@ -353,32 +384,37 @@ const collator = new Intl.Collator(undefined, {numeric:true, sensitivity:'base'}
 const els = {
   stage: $('#stage'), screen: $('#screen'), badge: $('#badge'),
   atlasList: $('#atlasList'), atlasEmpty: $('#atlasEmpty'), atlasCount: $('#atlasCount'),
+  listTitle: $('#listTitle'), scopeSeg: $('#scopeSeg'), groupFilterSeg: $('#groupFilterSeg'),
   actionList: $('#actionList'), actionCount: $('#actionCount'),
   timeline: $('#timeline'), metaLine: $('#metaLine'),
   playBtn: $('#playBtn'), prevBtn: $('#prevBtn'), nextBtn: $('#nextBtn'),
   fpsRange: $('#fpsRange'), fpsOut: $('#fpsOut'), modeSel: $('#modeSel'),
   loopChk: $('#loopChk'), onionChk: $('#onionChk'),
   dropper: $('#dropper'), busy: $('#busy'), busyText: $('#busyText'), toast: $('#toast'),
-  fileInput: $('#fileInput'), folderInput: $('#folderInput')
+  fileInput: $('#fileInput'), folderInput: $('#folderInput'),
+  pathBar: $('#pathBar'), pathText: $('#pathText')
 };
 const ctx = els.screen.getContext('2d');
 
 const state = {
-  atlases: [], currentId: null, actionKey: null, idx: 0,
+  atlases: [], currentId: null, groupKey: null, view: 'group', groupFilter: 'all', actionKey: null, idx: 0,
   playing: true, acc: 0, last: 0,
   fps: 30, mode: 'index', loop: true, onion: false, bg: 'dark'
 };
+let actCache = null;
 const filePool = new Map(); // 小写文件名 -> File，跨批次保留，便于后补贴图
 
 /* ---------- 偏好 ---------- */
 try {
   const p = JSON.parse(localStorage.getItem('spriteStudioPrefs') || '{}');
-  for (const k of ['fps','mode','loop','onion','bg']) if (k in p) state[k] = p[k];
+  for (const k of ['fps','mode','loop','onion','bg','groupFilter']) if (k in p) state[k] = p[k];
 } catch (e) {}
+if (!['all', '2', '3+'].includes(state.groupFilter)) state.groupFilter = 'all';
 function savePrefs(){
   try {
     localStorage.setItem('spriteStudioPrefs', JSON.stringify({
-      fps: state.fps, mode: state.mode, loop: state.loop, onion: state.onion, bg: state.bg
+      fps: state.fps, mode: state.mode, loop: state.loop, onion: state.onion, bg: state.bg,
+      groupFilter: state.groupFilter
     }));
   } catch (e) {}
 }
@@ -388,6 +424,14 @@ const yieldUI = () => new Promise(r => setTimeout(r, 0));
 const stripExt = n => n.replace(/\.(plist|json|png|jpe?g|webp)$/i, '');
 const isImage = n => /\.(png|jpe?g|webp)$/i.test(n);
 const isAtlas = n => /\.(plist|json)$/i.test(n);
+
+/* 浏览器不暴露绝对路径：文件夹选择给 webkitRelativePath，拖拽给 entry.fullPath，
+   两者都只到所选文件夹为止 */
+function fileDir(f, paths){
+  const p = String(f.webkitRelativePath || (paths && paths.get(f)) || '').replace(/^\/+/, '');
+  const i = p.lastIndexOf('/');
+  return i > 0 ? p.slice(0, i) : '';
+}
 
 function toast(msg, ms = 4800, type = 'error'){
   els.toast.textContent = msg;
@@ -464,10 +508,14 @@ async function dbClear(){
 }
 
 function saveLast(){
-  const a = curAtlas();
+  const a = curAtlas() || curAtlases()[0] || null;
   try {
-    if (a) {
-      localStorage.setItem('spriteStudioLast', JSON.stringify({ atlas: a.fileName }));
+    if (a || state.groupKey) {
+      localStorage.setItem('spriteStudioLast', JSON.stringify({
+        view: state.view,
+        group: state.groupKey,
+        atlas: a ? a.fileName : null
+      }));
     } else {
       localStorage.removeItem('spriteStudioLast');
     }
@@ -618,11 +666,11 @@ function loadImage(file){
   });
 }
 
-function buildFrameCanvas(img, g){
+function buildFrameCanvas(img, g, scale = 1){
   const { rect, w, h, rotated, srcW, srcH } = g;
   const out = document.createElement('canvas');
-  out.width = Math.max(1, Math.round(srcW));
-  out.height = Math.max(1, Math.round(srcH));
+  out.width = Math.max(1, Math.round(srcW * scale));
+  out.height = Math.max(1, Math.round(srcH * scale));
   const o = out.getContext('2d');
 
   const pw = rotated ? h : w;   // 图集中实际占用宽度
@@ -630,30 +678,36 @@ function buildFrameCanvas(img, g){
 
   if (rotated) {
     const tmp = document.createElement('canvas');
-    tmp.width = Math.max(1, Math.round(w));
-    tmp.height = Math.max(1, Math.round(h));
+    tmp.width = Math.max(1, Math.round(w * scale));
+    tmp.height = Math.max(1, Math.round(h * scale));
     const t = tmp.getContext('2d');
-    t.translate(w / 2, h / 2);
+    t.translate(w * scale / 2, h * scale / 2);
     t.rotate(-Math.PI / 2);
-    t.drawImage(img, rect.x, rect.y, pw, ph, -h / 2, -w / 2, h, w);
-    o.drawImage(tmp, Math.round(g.px), Math.round(g.py));
+    t.drawImage(img, rect.x, rect.y, pw, ph,
+                -h * scale / 2, -w * scale / 2, h * scale, w * scale);
+    o.drawImage(tmp, Math.round(g.px * scale), Math.round(g.py * scale));
   } else {
-    o.drawImage(img, rect.x, rect.y, w, h, Math.round(g.px), Math.round(g.py), w, h);
+    o.drawImage(img, rect.x, rect.y, w, h,
+                Math.round(g.px * scale), Math.round(g.py * scale), w * scale, h * scale);
   }
   return out;
 }
 
-function makeThumb(source, size){
-  const t = document.createElement('canvas');
-  t.width = t.height = size;
-  const c = t.getContext('2d');
-  const s = Math.min(size / source.width, size / source.height);
-  c.drawImage(source, (size - source.width * s) / 2, (size - source.height * s) / 2,
-              source.width * s, source.height * s);
-  return t;
+function drawThumb(c2, fr, size){
+  const t = fr && fr.thumb;
+  if (!t) return;
+  const s = Math.min(size / t.width, size / t.height);
+  c2.drawImage(t, (size - t.width * s) / 2, (size - t.height * s) / 2,
+               t.width * s, t.height * s);
 }
 
 /* ---------- 动作分组 ---------- */
+/* 角色组名：去掉文件名末尾的 _数字 / -数字，如 model1002034_1 → model1002034 */
+function atlasGroupKey(fileName){
+  const base = stripExt(fileName);
+  return base.replace(/[_\-]\d+$/, '') || base;
+}
+
 function groupFrames(frames){
   const groups = new Map();
   for (const fr of frames) {
@@ -690,6 +744,60 @@ function groupFrames(frames){
   return actions;
 }
 
+/* 把同一角色组内多个图集的同名动作合并；帧按帧号排序，重复帧只保留先载入的那份 */
+function buildGroupActions(atlases){
+  const map = new Map();
+  const seen = new Map();
+  let conflicts = 0;
+
+  for (const a of atlases){
+    for (const act of a.actions){
+      if (act.special) continue;
+      let g = map.get(act.key);
+      if (!g){
+        g = { key: act.key, label: act.label, frames: [], sources: new Set() };
+        map.set(act.key, g);
+      }
+      for (const fr of act.frames){
+        const sig = act.key + '#' + (fr.index != null ? 'i' + fr.index : 'n' + fr.label);
+        if (seen.has(sig)){ conflicts++; continue; }
+        seen.set(sig, a.id);
+        g.frames.push(fr);
+        g.sources.add(a.id);
+      }
+    }
+  }
+
+  const actions = [];
+  for (const g of map.values()){
+    g.frames.sort((x, y) => (x.index != null && y.index != null)
+      ? x.index - y.index
+      : collator.compare(x.label, y.label));
+    const idxs = g.frames.map(f => f.index).filter(i => i != null);
+    g.gap = idxs.length > 1 && (idxs[idxs.length - 1] - idxs[0] + 1) !== idxs.length;
+    g.atlasCount = g.sources.size;
+    actions.push(g);
+  }
+  actions.sort((a, b) => collator.compare(a.label, b.label));
+
+  const allSeen = new Set();
+  const all = [];
+  for (const a of atlases) for (const fr of a.frames){
+    if (allSeen.has(fr.label)) continue;
+    allSeen.add(fr.label);
+    all.push(fr);
+  }
+  if (all.length > 1){
+    actions.unshift({
+      key: '__all__', label: '全部帧', special: true,
+      frames: naturalSort(all, f => f.label),
+      sources: new Set(atlases.map(a => a.id)),
+      atlasCount: atlases.length
+    });
+  }
+  return { actions, conflicts };
+}
+
 /* ---------- 载入 ---------- */
 function defaultActionOf(atlas){
   const all = atlas.actions.find(a => a.key === '__all__');
@@ -708,7 +816,7 @@ function pickTexture(texName, atlasFile, pool){
   return null;
 }
 
-async function buildAtlas(atlasFile, pool){
+async function buildAtlas(atlasFile, pool, dir = ''){
   const text = await readText(atlasFile);
   const root = parseAtlasText(text, atlasFile.name);
   const framesObj = root && root.frames;
@@ -727,11 +835,12 @@ async function buildAtlas(atlasFile, pool){
   }
 
   const frames = [];
+  const id = 'atlas_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6);
   for (const [name, data] of entries) {
     const g = frameGeom(data);
     if (!g || !g.rect.w || !g.rect.h) continue;
     frames.push({
-      name, label: stripExt(name), index: null, geom: g,
+      name, label: stripExt(name), index: null, geom: g, atlasId: id,
       canvas: null, thumb: null, w: 0, h: 0
     });
   }
@@ -741,91 +850,132 @@ async function buildAtlas(atlasFile, pool){
   if (meta.size) { const sz = parseSize(meta.size); tw = sz.w; th = sz.h; }
 
   return {
-    id: 'atlas_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
+    id,
     name: stripExt(atlasFile.name),
+    groupKey: atlasGroupKey(atlasFile.name),
     fileName: atlasFile.name,
+    dir,
     textureName: texFile.name,
     texFile,
     textureSize: [tw, th],
     actions: groupFrames(frames),
     frames,
     frameCount: frames.length,
-    built: false,
-    building: null,
+    img: null,
+    loading: null,
     sourceText: text,
     textureFile: texFile
   };
 }
 
-/* 只给当前选中的图集生成帧画布，避免一次载入很多图集时内存爆掉 */
-async function ensureAtlas(atlas){
-  if (!atlas) return;
-  if (atlas.built) return;
-  if (atlas.building) return atlas.building;
-  atlas.building = (async () => {
+/* ---------- 贴图与帧缓存 ----------
+   跨图集动作的帧来自不同贴图：贴图按图集常驻（每张几 MB），
+   帧画布只为当前帧附近窗口生成，避免整组上百帧 × 700² 撑爆内存。 */
+const atlasById = id => state.atlases.find(a => a.id === id) || null;
+
+async function loadAtlasTexture(atlas){
+  if (!atlas) return null;
+  if (atlas.img) return atlas.img;
+  if (atlas.loading) return atlas.loading;
+  atlas.loading = (async () => {
     const { img, url } = await loadImage(atlas.texFile);
-    try {
-      let n = 0;
-      for (const fr of atlas.frames) {
-        fr.canvas = buildFrameCanvas(img, fr.geom);
-        fr.thumb = makeThumb(fr.canvas, 80);
-        fr.w = fr.canvas.width;
-        fr.h = fr.canvas.height;
-        if (++n % 12 === 0) await yieldUI();
-      }
-      await yieldUI();
-      atlas.textureSize = [img.naturalWidth, img.naturalHeight];
-      atlas.built = true;
-    } finally {
-      URL.revokeObjectURL(url);
-      atlas.building = null;
-    }
+    atlas.img = img;
+    atlas.textureSize = [img.naturalWidth, img.naturalHeight];
+    URL.revokeObjectURL(url);   // 已解码，后续绘制不依赖 object URL
+    return img;
   })();
-  return atlas.building;
+  try { return await atlas.loading; }
+  finally { atlas.loading = null; }
 }
 
-function releaseAtlas(atlas){
-  if (!atlas || !atlas.built) return;
-  for (const fr of atlas.frames) {
-    if (fr.canvas) {
-      fr.canvas.width = 0;
-      fr.canvas.height = 0;
-    }
-    fr.canvas = null;
-    fr.thumb = null;
-    fr.w = 0;
-    fr.h = 0;
+function ensureThumb(fr, size = 80){
+  if (!fr) return null;
+  if (fr.thumb) return fr.thumb;
+  const a = atlasById(fr.atlasId);
+  if (!a || !a.img) return null;
+  const g = fr.geom;
+  const s = size / Math.max(g.srcW || 1, g.srcH || 1);
+  fr.thumb = buildFrameCanvas(a.img, g, s);
+  return fr.thumb;
+}
+
+const FRAME_WINDOW = 8;
+function ensureWindow(frames, center){
+  const lo = Math.max(0, center - FRAME_WINDOW);
+  const hi = Math.min(frames.length, center + FRAME_WINDOW + 1);
+  for (let i = lo; i < hi; i++){
+    const fr = frames[i];
+    if (fr.canvas) continue;
+    const a = atlasById(fr.atlasId);
+    if (!a || !a.img) continue;
+    fr.canvas = buildFrameCanvas(a.img, fr.geom);
+    fr.w = fr.canvas.width;
+    fr.h = fr.canvas.height;
   }
-  atlas.built = false;
+  for (let i = 0; i < frames.length; i++){
+    if (i >= lo && i < hi) continue;
+    const fr = frames[i];
+    if (fr.canvas){ fr.canvas.width = fr.canvas.height = 0; fr.canvas = null; }
+  }
 }
 
-function releaseOthers(keepId){
-  for (const a of state.atlases) if (a.id !== keepId) releaseAtlas(a);
+function clearFrames(){
+  for (const a of state.atlases){
+    for (const fr of a.frames){
+      if (fr.canvas){ fr.canvas.width = fr.canvas.height = 0; fr.canvas = null; }
+    }
+  }
+}
+
+function unloadTexturesExcept(keepIds){
+  const keep = new Set(keepIds);
+  for (const a of state.atlases){
+    if (!keep.has(a.id)) a.img = null;
+  }
 }
 
 let activateSeq = 0;
-async function activateAtlas(atlas){
-  const my = ++activateSeq;
-  if (!atlas) {
-    renderAtlases(); renderActions(); renderTimeline(); render(); syncPlayBtn();
-    return;
+const scopeLabel = () => state.view === 'atlas'
+  ? ((curAtlas() || {}).name || '')
+  : (state.groupKey || '');
+
+async function prepareScope(){
+  const atlases = curAtlases();
+  for (const a of atlases){
+    if (!a.img){
+      busy(true, '正在载入贴图 ' + a.textureName + '…');
+      await loadAtlasTexture(a);
+    }
   }
-  state.actionKey = (defaultActionOf(atlas) || {}).key || null;
-  state.idx = 0; state.acc = 0; state.playing = true;
-  renderAtlases();
-  busy(true, '正在准备「' + atlas.name + '」…');
-  try {
-    await ensureAtlas(atlas);
-  } catch (e) {
-    toast('「' + atlas.name + '」：' + (e && e.message ? e.message : e));
-  }
-  if (my !== activateSeq) {
-    if (state.currentId !== atlas.id) releaseAtlas(atlas);
-    return;
-  }
-  releaseOthers(atlas.id);
   busy(false);
-  renderAtlases();
+}
+
+async function activateScope(){
+  const my = ++activateSeq;
+  actCache = null;
+  state.idx = 0; state.acc = 0; state.playing = true;
+  state.actionKey = null;
+
+  const atlases = curAtlases();
+  const acts = curActions();
+  const pick = acts.find(x => x.key === '__all__') || acts.find(x => !x.special) || acts[0];
+  state.actionKey = pick ? pick.key : null;
+
+  renderScopeList();
+  if (!atlases.length){
+    renderActions(); renderTimeline(); render(); syncPlayBtn();
+    return;
+  }
+
+  busy(true, '正在准备「' + scopeLabel() + '」…');
+  try { await prepareScope(); }
+  catch (e) { toast('「' + scopeLabel() + '」：' + (e && e.message ? e.message : e)); }
+  if (my !== activateSeq) return;
+
+  unloadTexturesExcept(atlases.map(a => a.id));
+  clearFrames();
+  busy(false);
+  renderScopeList();
   renderActions();
   renderTimeline();
   render();
@@ -852,17 +1002,20 @@ async function loadFiles(fileList, opts = {}){
   const errors = [];
   let persistError = null;
   let added = 0, firstLoaded = null;
+  const addedGroups = new Set();
 
   for (const file of atlasFiles) {
     try {
-      const atlas = await buildAtlas(file, filePool);
+      const atlas = await buildAtlas(file, filePool, fileDir(file, opts.dirs));
       const old = state.atlases.findIndex(a => a.fileName === file.name);
       if (old >= 0) {
-        releaseAtlas(state.atlases[old]);
+        state.atlases[old].img = null;
         state.atlases.splice(old, 1);
+        actCache = null;
       }
       state.atlases.push(atlas);
       added++;
+      addedGroups.add(atlas.groupKey);
       if (opts.persist !== false) {
         try {
           await dbPut({
@@ -871,6 +1024,7 @@ async function loadFiles(fileList, opts = {}){
             textureName: atlas.textureFile.name,
             textureType: atlas.textureFile.type || '',
             texture: atlas.textureFile,
+            dir: atlas.dir || '',
             addedAt: Date.now()
           });
         } catch (e) { persistError = e; }
@@ -878,7 +1032,7 @@ async function loadFiles(fileList, opts = {}){
       if (added === 1) {
         firstLoaded = atlas;
         state.currentId = atlas.id;
-        state.actionKey = (defaultActionOf(atlas) || {}).key || null;
+        state.groupKey = atlas.groupKey;
         state.idx = 0; state.acc = 0; state.playing = true;
       }
       if (added % 5 === 0) {
@@ -893,7 +1047,9 @@ async function loadFiles(fileList, opts = {}){
   busy(false);
   if (errors.length) {
     toast(errors.join('\n'));
-  } else if (added === 1 && firstLoaded) {
+  } else if (added === 1 && firstLoaded &&
+             (!groupFilterOn() ||
+              groupFilterMatch(state.atlases.filter(a => a.groupKey === firstLoaded.groupKey).length))) {
     const normal = firstLoaded.actions.filter(x => !x.special);
     if (normal.length > 1) {
       const chosen = defaultActionOf(firstLoaded);
@@ -905,8 +1061,21 @@ async function loadFiles(fileList, opts = {}){
     }
   }
   if (added) {
-    renderAtlases();
-    await activateAtlas(firstLoaded || curAtlas());
+    actCache = null;
+    const hiddenGroups = [...addedGroups]
+      .filter(k => groupFilterOn() &&
+                   !groupFilterMatch(state.atlases.filter(a => a.groupKey === k).length));
+    ensureVisibleSelection();
+    renderScopeList();
+    await activateScope();
+    if (hiddenGroups.length){
+      toast('已按「' + groupFilterLabel() + '」筛选，' + hiddenGroups.length + ' 个新载入的角色组未显示', 6000, 'info');
+    }
+    const conflicts = actCache && actCache.conflicts;
+    if (conflicts) {
+      toast('跨图集合并时发现 ' + conflicts +
+            ' 个重复帧（同动作同帧号出现在多个图集），已保留先载入的那份。', 7000, 'info');
+    }
   }
 }
 
@@ -929,7 +1098,7 @@ async function restoreSaved(){
       const texFile = new File([r.texture], r.textureName || (stripExt(r.fileName) + '.png'),
                                { type: r.textureType || (r.texture && r.texture.type) || 'image/png' });
       filePool.set(texFile.name.toLowerCase(), texFile);
-      const atlas = await buildAtlas(atlasFile, filePool);
+      const atlas = await buildAtlas(atlasFile, filePool, r.dir || '');
       if (!state.atlases.some(a => a.fileName === atlas.fileName)) state.atlases.push(atlas);
     } catch (e) {
       errors.push(r.fileName + '：' + (e && e.message ? e.message : e));
@@ -944,26 +1113,208 @@ async function restoreSaved(){
 
   let last = null;
   try { last = JSON.parse(localStorage.getItem('spriteStudioLast') || 'null'); } catch (e) {}
-  const target = (last && state.atlases.find(a => a.fileName === last.atlas)) || state.atlases[0];
+  if (last && last.view === 'atlas') state.view = 'atlas';
+  const target = (last && last.atlas && state.atlases.find(a => a.fileName === last.atlas)) || state.atlases[0];
   state.currentId = target.id;
-  renderAtlases();
-  await activateAtlas(target);
+  state.groupKey = (last && last.group && state.atlases.some(a => a.groupKey === last.group))
+    ? last.group : target.groupKey;
+  ensureVisibleSelection();
+  syncScopeSeg();
+  syncGroupFilter();
+  renderScopeList();
+  await activateScope();
   if (errors.length) toast(errors.join(String.fromCharCode(10)), 6500);
 }
 
 /* ---------- 渲染 ---------- */
 const curAtlas = () => state.atlases.find(a => a.id === state.currentId) || null;
-function curAction(){
-  const a = curAtlas();
-  return a ? (a.actions.find(x => x.key === state.actionKey) || null) : null;
+
+/* 当前作用域：角色组（跨图集合并）或单个图集 */
+function curAtlases(){
+  if (state.view === 'atlas'){
+    const a = curAtlas();
+    return a ? [a] : [];
+  }
+  return state.atlases.filter(a => a.groupKey === state.groupKey);
 }
+
+function scopeKey(){
+  if (state.view === 'atlas') return 'atlas:' + state.currentId;
+  return 'group:' + state.groupKey + '|' + curAtlases().map(a => a.id).join(',');
+}
+
+function curActions(){
+  const key = scopeKey();
+  if (actCache && actCache.key === key) return actCache.list;
+  let list, conflicts = 0;
+  if (state.view === 'atlas'){
+    const a = curAtlas();
+    list = a ? a.actions : [];
+  } else {
+    const r = buildGroupActions(curAtlases());
+    list = r.actions;
+    conflicts = r.conflicts;
+  }
+  actCache = { key, list, conflicts };
+  return list;
+}
+
+function curAction(){ return curActions().find(x => x.key === state.actionKey) || null; }
 const curFrames = () => { const a = curAction(); return a ? a.frames : []; };
 const curFrame = () => curFrames()[state.idx] || null;
 
-function renderAtlases(){
+function syncScopeSeg(){
+  [...els.scopeSeg.children].forEach(b => b.classList.toggle('on', b.dataset.view === state.view));
+}
+
+/* ---------- 角色组筛选 ---------- */
+function groupMap(){
+  const m = new Map();
+  for (const a of state.atlases){
+    if (!m.has(a.groupKey)) m.set(a.groupKey, []);
+    m.get(a.groupKey).push(a);
+  }
+  return m;
+}
+
+const groupFilterOn = () => state.groupFilter !== 'all';
+const groupFilterLabel = () => state.groupFilter === '2' ? '2 图集' : state.groupFilter === '3+' ? '3 图集以上' : '全部';
+function groupFilterMatch(n){
+  if (state.groupFilter === '2') return n === 2;
+  if (state.groupFilter === '3+') return n >= 3;
+  return true;
+}
+
+function visibleGroupKeys(){
+  const m = groupMap();
+  let keys = naturalSort([...m.keys()], k => k);
+  if (groupFilterOn()) keys = keys.filter(k => groupFilterMatch(m.get(k).length));
+  return keys;
+}
+
+function syncGroupFilter(){
+  els.groupFilterSeg.style.display = state.view === 'group' ? '' : 'none';
+  [...els.groupFilterSeg.children].forEach(b =>
+    b.classList.toggle('on', b.dataset.filter === state.groupFilter));
+}
+
+/* 筛选后当前选中的组被隐藏时，切到第一个可见组 */
+function ensureVisibleSelection(){
+  if (state.view !== 'group' || !groupFilterOn()) return false;
+  const visible = visibleGroupKeys();
+  if (state.groupKey && visible.includes(state.groupKey)) return false;
+  const next = visible[0] || null;
+  state.groupKey = next;
+  state.currentId = next
+    ? ((state.atlases.find(a => a.groupKey === next) || {}).id || null)
+    : null;
+  return true;
+}
+
+function setGroupFilter(value){
+  if (state.groupFilter === value) return;
+  state.groupFilter = value;
+  savePrefs();
+  syncGroupFilter();
+  if (state.view !== 'group') return;
+
+  const moved = ensureVisibleSelection();
+  if (!state.groupKey && !groupFilterOn()){
+    // 关闭筛选后从空选中恢复
+    const first = curAtlas() || state.atlases[0] || null;
+    if (first){
+      state.groupKey = first.groupKey;
+      state.currentId = first.id;
+      activateScope();
+      return;
+    }
+  }
+  if (moved){
+    if (state.groupKey) activateScope();
+    else { actCache = null; renderScopeList(); renderActions(); renderTimeline(); render(); syncPlayBtn(); }
+    return;
+  }
+  renderScopeList();
+}
+
+/* 顶部显示已导入图集所在的文件夹路径（浏览器只提供相对路径） */
+function updatePathBar(){
+  const dirs = [...new Set(state.atlases.map(a => a.dir).filter(Boolean))];
+  if (!dirs.length){
+    els.pathBar.hidden = true;
+    els.pathText.textContent = '';
+    els.pathBar.title = '';
+    return;
+  }
+  const roots = [...new Set(dirs.map(d => d.split('/')[0]))];
+  els.pathBar.hidden = false;
+  els.pathText.textContent = roots.join('、') +
+    (roots.length > 1 ? `（共 ${roots.length} 个文件夹）` : '');
+  els.pathBar.title = '已导入图集所在文件夹（浏览器只提供相对路径）：\n' + dirs.join('\n');
+}
+
+function renderScopeList(){
+  updatePathBar();
   els.atlasList.innerHTML = '';
+  els.listTitle.textContent = state.view === 'group' ? '角色组' : '图集';
+  syncGroupFilter();
+  els.atlasEmpty.innerHTML = '尚未载入图集<br>拖入 plist + png 即可预览';
+  if (!state.atlases.length){
+    els.atlasCount.textContent = '0';
+    els.atlasEmpty.style.display = '';
+    return;
+  }
+
+  if (state.view === 'group'){
+    const groups = groupMap();
+    const keys = visibleGroupKeys();
+    els.atlasCount.textContent = keys.length === groups.size
+      ? String(groups.size)
+      : keys.length + '/' + groups.size;
+    if (!keys.length){
+      els.atlasEmpty.style.display = '';
+      els.atlasEmpty.innerHTML = '没有符合「' + groupFilterLabel() + '」的角色组<br>切换筛选或拖入更多图集';
+      return;
+    }
+    els.atlasEmpty.style.display = 'none';
+    for (const k of keys){
+      const list = groups.get(k);
+      const grouped = buildGroupActions(list);
+      const normal = grouped.actions.filter(x => !x.special);
+      const total = list.reduce((s, a) => s + a.frameCount, 0);
+      const row = document.createElement('div');
+      row.className = 'atlas-item' + (k === state.groupKey ? ' active' : '');
+      row.title = list.map(a => a.fileName + ' + ' + a.textureName).join('\n');
+      const info = document.createElement('div');
+      info.className = 'ai';
+      const b = document.createElement('b'); b.textContent = k;
+      const s = document.createElement('span');
+      s.textContent = `${list.length} 图集 · ${total} 帧 · ${normal.length} 动作`;
+      info.append(b, s);
+      const tags = document.createElement('div');
+      tags.className = 'tags';
+      if (list.length > 1){
+        const t = document.createElement('span'); t.className = 'tag';
+        t.textContent = '跨图集'; tags.appendChild(t);
+      }
+      if (grouped.conflicts){
+        const t = document.createElement('span'); t.className = 'tag warn';
+        t.textContent = '重复 ' + grouped.conflicts + ' 帧'; tags.appendChild(t);
+      }
+      if (tags.children.length) info.appendChild(tags);
+      const del = document.createElement('button');
+      del.className = 'del'; del.textContent = '×';
+      del.title = '移除该组所有图集并清除本地记忆';
+      del.onclick = e => { e.stopPropagation(); removeGroup(k); };
+      row.append(info, del);
+      row.onclick = () => selectGroup(k);
+      els.atlasList.appendChild(row);
+    }
+    return;
+  }
+
+  els.atlasEmpty.style.display = 'none';
   els.atlasCount.textContent = state.atlases.length;
-  els.atlasEmpty.style.display = state.atlases.length ? 'none' : '';
   for (const a of state.atlases) {
     const row = document.createElement('div');
     row.className = 'atlas-item' + (a.id === state.currentId ? ' active' : '');
@@ -985,51 +1336,127 @@ function renderAtlases(){
   }
 }
 
+function selectGroup(key){
+  if (state.view !== 'group'){ state.view = 'group'; syncScopeSeg(); }
+  if (state.groupKey === key && state.actionKey) return;
+  state.groupKey = key;
+  const first = state.atlases.find(a => a.groupKey === key);
+  if (first) state.currentId = first.id;
+  activateScope();
+}
+
+function selectAtlas(id){
+  if (state.currentId === id && state.view === 'atlas') return;
+  const a = state.atlases.find(x => x.id === id);
+  if (!a) return;
+  state.currentId = id;
+  state.groupKey = a.groupKey;
+  state.view = 'atlas';
+  syncScopeSeg();
+  activateScope();
+}
+
+function switchView(view){
+  if (state.view === view) return;
+  state.view = view;
+  if (view === 'group'){
+    if (!state.groupKey || !state.atlases.some(a => a.groupKey === state.groupKey)){
+      state.groupKey = ((curAtlas() || state.atlases[0] || {}).groupKey) || null;
+    }
+    ensureVisibleSelection();
+  }
+  syncScopeSeg();
+  syncGroupFilter();
+  if (view === 'group' && !state.groupKey){
+    actCache = null;
+    renderScopeList(); renderActions(); renderTimeline(); render(); syncPlayBtn();
+    return;
+  }
+  activateScope();
+}
+
 function removeAtlas(id){
   const i = state.atlases.findIndex(a => a.id === id);
   if (i < 0) return;
   const removed = state.atlases[i];
-  releaseAtlas(removed);
+  const wasCurrent = state.currentId === id;
   state.atlases.splice(i, 1);
+  actCache = null;
   dbDelete(removed.fileName).catch(() => toast('清除本地记忆失败：' + removed.fileName));
-  if (state.currentId === id) {
+
+  if (wasCurrent){
     const next = state.atlases[i] || state.atlases[i - 1] || null;
     state.currentId = next ? next.id : null;
-    state.idx = 0; state.acc = 0; state.playing = true;
-    activateAtlas(next);
+    state.groupKey = next ? next.groupKey : null;
+  }
+  const moved = ensureVisibleSelection();
+  const alive = state.view === 'group'
+    ? !!(state.groupKey && state.atlases.some(a => a.groupKey === state.groupKey))
+    : !!state.currentId;
+
+  if (!alive){
+    actCache = null;
+    renderScopeList(); renderActions(); renderTimeline(); render(); syncPlayBtn();
+  } else if (moved || wasCurrent || (state.view === 'group' && removed.groupKey === state.groupKey)){
+    activateScope();
   } else {
-    renderAtlases();
+    renderScopeList();
   }
   saveLast();
 }
 
-function selectAtlas(id){
-  if (state.currentId === id) return;
-  const a = state.atlases.find(x => x.id === id);
-  if (!a) return;
-  state.currentId = id;
-  activateAtlas(a);
+async function removeGroup(key){
+  const list = state.atlases.filter(a => a.groupKey === key);
+  if (!list.length) return;
+  if (!confirm(`从预览中移除「${key}」的 ${list.length} 个图集，并清除本地记忆？`)) return;
+  for (const a of list) await dbDelete(a.fileName).catch(() => {});
+  state.atlases = state.atlases.filter(a => a.groupKey !== key);
+  actCache = null;
+  clearFrames();
+  const wasCurrent = state.groupKey === key;
+  if (wasCurrent){
+    const next = state.atlases[0] || null;
+    state.groupKey = next ? next.groupKey : null;
+    state.currentId = next ? next.id : null;
+  }
+  if (state.view === 'group'){
+    const moved = ensureVisibleSelection();
+    const alive = !!(state.groupKey && state.atlases.some(a => a.groupKey === state.groupKey));
+    if (!alive){
+      actCache = null;
+      renderScopeList(); renderActions(); renderTimeline(); render(); syncPlayBtn();
+    } else if (wasCurrent || moved){
+      activateScope();
+    } else {
+      renderScopeList();
+    }
+  } else {
+    renderScopeList();
+  }
+  saveLast();
 }
 
 function renderActions(){
   els.actionList.innerHTML = '';
-  const a = curAtlas();
-  if (!a) { els.actionCount.textContent = ''; return; }
-  const list = a.actions;
+  if (!curAtlases().length) { els.actionCount.textContent = ''; return; }
+  const list = curActions();
   els.actionCount.textContent = list.filter(x => !x.special).length + ' 个';
   for (const act of list) {
     const btn = document.createElement('button');
     btn.className = 'action-item' + (act.key === state.actionKey ? ' active' : '');
-    btn.title = act.label + ' · ' + act.frames.length + ' 帧';
+    btn.title = act.label + ' · ' + act.frames.length + ' 帧' +
+      (act.atlasCount > 1 ? ' · 来自 ' + act.atlasCount + ' 个图集' : '') +
+      (act.gap ? ' · 帧号有缺口' : '');
     const mini = document.createElement('canvas');
     mini.width = mini.height = 30;
     const mc = mini.getContext('2d');
-    const thumb = act.frames[0].thumb;
-    if (thumb) mc.drawImage(thumb, 0, 0, 30, 30);
+    const fr = act.frames[0];
+    if (fr) { ensureThumb(fr); drawThumb(mc, fr, 30); }
     const name = document.createElement('span');
     name.className = 'an'; name.textContent = act.label;
     const cnt = document.createElement('span');
-    cnt.className = 'ac'; cnt.textContent = act.frames.length;
+    cnt.className = 'ac';
+    cnt.textContent = act.frames.length + (act.atlasCount > 1 ? '·' + act.atlasCount + '图' : '');
     btn.append(mini, name, cnt);
     btn.onclick = () => selectAction(act.key);
     els.actionList.appendChild(btn);
@@ -1040,6 +1467,7 @@ function selectAction(key){
   if (state.actionKey === key) return;
   state.actionKey = key;
   state.idx = 0; state.acc = 0; state.playing = true;
+  clearFrames();
   renderActions(); renderTimeline(); render(); syncPlayBtn();
   saveLast();
 }
@@ -1057,10 +1485,12 @@ function renderTimeline(){
   frames.forEach((fr, i) => {
     const b = document.createElement('button');
     b.className = 'frame-item' + (i === state.idx ? ' active' : '');
-    b.title = fr.name + ' · ' + Math.round(holdOf(i)) + 'ms';
+    const src = fr.atlasId ? atlasById(fr.atlasId) : null;
+    b.title = fr.name + ' · ' + Math.round(holdOf(i)) + 'ms' + (src ? ' · ' + src.name : '');
     const cv = document.createElement('canvas');
     cv.width = cv.height = 80;
-    if (fr.thumb) cv.getContext('2d').drawImage(fr.thumb, 0, 0);
+    ensureThumb(fr);
+    drawThumb(cv.getContext('2d'), fr, 80);
     const lab = document.createElement('i');
     lab.textContent = fr.index != null ? fr.index : (i + 1);
     b.append(cv, lab);
@@ -1087,26 +1517,43 @@ function drawScreen(){
 }
 
 function render(){
-  const atlas = curAtlas(), act = curAction(), frames = curFrames(), fr = curFrame();
-  const has = !!atlas && frames.length > 0 && !!(fr && fr.canvas);
+  const frames = curFrames(), fr = curFrame(), atlases = curAtlases(), act = curAction();
+  ensureWindow(frames, state.idx);
+  const has = atlases.length > 0 && frames.length > 0 && !!(fr && fr.canvas);
   els.stage.classList.toggle('has-data', has);
   els.playBtn.disabled = els.prevBtn.disabled = els.nextBtn.disabled = !has;
   drawScreen();
 
-  if (atlas && act && fr && fr.canvas) {
+  if (act && fr && fr.canvas) {
+    const src = fr.atlasId ? atlasById(fr.atlasId) : null;
     els.badge.classList.remove('hide');
     els.badge.innerHTML = '';
     const b = document.createElement('b'); b.textContent = act.label;
     els.badge.append(b, document.createTextNode(
-      ` · 帧 ${fr.index != null ? fr.index : state.idx + 1} · ${state.idx + 1}/${frames.length} · ${fr.w}×${fr.h} · ${Math.round(holdOf(state.idx))}ms`
+      ` · 帧 ${fr.index != null ? fr.index : state.idx + 1} · ${state.idx + 1}/${frames.length}` +
+      `${src && state.view === 'group' ? ' · ' + src.name : ''}` +
+      ` · ${fr.w}×${fr.h} · ${Math.round(holdOf(state.idx))}ms`
     ));
-    els.metaLine.innerHTML = `<b>${atlas.name}</b> · ${atlas.textureName} · ${atlas.frameCount} 帧 / ${atlas.actions.filter(x => !x.special).length} 动作`;
+    els.metaLine.innerHTML = metaLineHtml(act);
   } else {
     els.badge.classList.add('hide');
     els.metaLine.textContent = '';
   }
 
   [...els.timeline.children].forEach((el, i) => el.classList.toggle('active', i === state.idx));
+}
+
+function metaLineHtml(act){
+  const atlases = curAtlases();
+  if (state.view === 'atlas'){
+    const a = atlases[0];
+    return `<b>${a.name}</b> · ${a.textureName} · ${a.frameCount} 帧 / ${a.actions.filter(x => !x.special).length} 动作`;
+  }
+  const total = atlases.reduce((s, a) => s + a.frameCount, 0);
+  const normalCount = curActions().filter(x => !x.special).length;
+  const cross = act && act.atlasCount > 1 ? ` · 跨 ${act.atlasCount} 图集` : '';
+  return `<b>${state.groupKey}</b> · ${atlases.length} 图集 · ${total} 帧 / ${normalCount} 动作` +
+         (act ? ` · 当前 ${act.label} ${act.frames.length} 帧${cross}` : '');
 }
 
 /* ---------- 播放 ---------- */
@@ -1158,15 +1605,24 @@ $('#pickFolderBtn').onclick = () => els.folderInput.click();
 $('#clearStore').onclick = async () => {
   if (state.atlases.length &&
       !confirm('确定清空所有图集和本地记忆吗？下次打开将不再自动载入。')) return;
-  for (const a of state.atlases) releaseAtlas(a);
+  clearFrames();
+  unloadTexturesExcept([]);
   state.atlases = [];
-  state.currentId = null; state.actionKey = null;
+  state.currentId = null; state.groupKey = null; state.actionKey = null;
+  actCache = null;
   state.idx = 0; state.acc = 0; state.playing = false;
   try { localStorage.removeItem('spriteStudioLast'); } catch (e) {}
   try { await dbClear(); } catch (e) { toast('清空本地记忆失败：' + (e.message || e)); }
-  renderAtlases(); renderActions(); renderTimeline(); render(); syncPlayBtn();
+  renderScopeList(); renderActions(); renderTimeline(); render(); syncPlayBtn();
   toast('已清空图集和本地记忆', 3000, 'info');
 };
+
+[...els.scopeSeg.children].forEach(b => {
+  b.onclick = () => switchView(b.dataset.view);
+});
+[...els.groupFilterSeg.children].forEach(b => {
+  b.onclick = () => setGroupFilter(b.dataset.filter);
+});
 
 els.fileInput.onchange = e => { loadFiles(e.target.files); els.fileInput.value = ''; };
 els.folderInput.onchange = e => { loadFiles(e.target.files); els.folderInput.value = ''; };
@@ -1244,26 +1700,27 @@ window.addEventListener('drop', async e => {
   const dt = e.dataTransfer;
   if (!dt) return;
   const files = [];
+  const paths = new Map();
   const items = [...(dt.items || [])];
   if (items.length && items[0].webkitGetAsEntry) {
     for (const it of items) {
       const entry = it.webkitGetAsEntry && it.webkitGetAsEntry();
-      if (entry) await collectEntry(entry, files);
+      if (entry) await collectEntry(entry, files, paths);
     }
   }
   if (!files.length && dt.files) files.push(...dt.files);
-  loadFiles(files);
+  loadFiles(files, { dirs: paths });
 });
 
-function collectEntry(entry, out){
+function collectEntry(entry, out, paths){
   return new Promise(resolve => {
     if (entry.isFile) {
-      entry.file(f => { out.push(f); resolve(); }, () => resolve());
+      entry.file(f => { paths.set(f, entry.fullPath || ''); out.push(f); resolve(); }, () => resolve());
     } else if (entry.isDirectory) {
       const reader = entry.createReader();
       const readBatch = () => reader.readEntries(async batch => {
         if (!batch.length) return resolve();
-        for (const e of batch) await collectEntry(e, out);
+        for (const e of batch) await collectEntry(e, out, paths);
         readBatch();
       }, () => resolve());
       readBatch();
@@ -1283,6 +1740,9 @@ els.onionChk.checked = state.onion;
 els.stage.className = 'stage bg-' + state.bg;
 document.querySelectorAll('#bgSeg button').forEach(b => b.classList.toggle('on', b.dataset.bg === state.bg));
 paintFps();
+syncScopeSeg();
+syncGroupFilter();
+renderScopeList();
 render();
 syncPlayBtn();
 requestAnimationFrame(tick);
