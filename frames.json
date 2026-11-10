@@ -1,0 +1,77 @@
+{
+  "actions": {
+    "attack8": [
+      {
+        "index": 8,
+        "name": "attack8_0008.png",
+        "file": "frames/attack8_0008.png",
+        "w": 500,
+        "h": 500,
+        "hold": 330
+      },
+      {
+        "index": 18,
+        "name": "attack8_0018.png",
+        "file": "frames/attack8_0018.png",
+        "w": 500,
+        "h": 500,
+        "hold": 70
+      },
+      {
+        "index": 20,
+        "name": "attack8_0020.png",
+        "file": "frames/attack8_0020.png",
+        "w": 500,
+        "h": 500,
+        "hold": 130
+      },
+      {
+        "index": 24,
+        "name": "attack8_0024.png",
+        "file": "frames/attack8_0024.png",
+        "w": 500,
+        "h": 500,
+        "hold": 30
+      },
+      {
+        "index": 25,
+        "name": "attack8_0025.png",
+        "file": "frames/attack8_0025.png",
+        "w": 500,
+        "h": 500,
+        "hold": 230
+      },
+      {
+        "index": 32,
+        "name": "attack8_0032.png",
+        "file": "frames/attack8_0032.png",
+        "w": 500,
+        "h": 500,
+        "hold": 130
+      }
+    ],
+    "idle8": [
+      {
+        "index": 1,
+        "name": "idle8_0001.png",
+        "file": "frames/idle8_0001.png",
+        "w": 500,
+        "h": 500,
+        "hold": 125
+      },
+      {
+        "index": 2,
+        "name": "idle8_0002.png",
+        "file": "frames/idle8_0002.png",
+        "w": 500,
+        "h": 500,
+        "hold": 125
+      }
+    ]
+  },
+  "texture": "model10040118_2.png",
+  "size": [
+    1012,
+    954
+  ]
+}

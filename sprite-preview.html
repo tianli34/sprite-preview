@@ -1,0 +1,1292 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>精灵动画预览器</title>
+<style>
+  :root{
+    --bg:#0c0f13; --panel:#141922; --panel2:#181f29; --line:#242c37; --line2:#303a47;
+    --text:#e9eef6; --muted:#8b98a9; --dim:#697687;
+    --accent:#ff7a3d; --accent-soft:rgba(255,122,61,.15); --danger:#ff6b6b;
+    --radius:12px;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0;background:var(--bg);color:var(--text);
+    font-family:"Segoe UI","Microsoft YaHei",system-ui,-apple-system,sans-serif;
+    display:flex;flex-direction:column;overflow:hidden;
+  }
+  button,input,select{font-family:inherit;color:inherit}
+  button{cursor:pointer}
+  header{
+    display:flex;align-items:center;gap:18px;padding:12px 20px;border-bottom:1px solid var(--line);
+    background:linear-gradient(180deg,#151b24,#10151c);flex:none;flex-wrap:wrap;
+  }
+  .brand{display:flex;align-items:center;gap:11px;min-width:0}
+  .brand > div{min-width:0}
+  .logo{
+    width:32px;height:32px;border-radius:9px;flex:none;display:grid;place-items:center;
+    background:linear-gradient(135deg,#ff8a50,#e94f1f);color:#20100a;font-size:16px;font-weight:800;
+    box-shadow:0 4px 14px rgba(233,79,31,.35);
+  }
+  .brand h1{font-size:15.5px;margin:0;font-weight:650;letter-spacing:.02em;white-space:nowrap}
+  .brand p{margin:2px 0 0;font-size:11.5px;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .grow{flex:1}
+  .toolbar{display:flex;align-items:center;gap:10px;flex:none;flex-wrap:wrap;justify-content:flex-end}
+  .btn{
+    appearance:none;border:1px solid var(--line2);background:#1b2330;border-radius:9px;
+    padding:8px 13px;font-size:12.5px;transition:.15s border-color,.15s background,.15s color;
+  }
+  .btn:hover{background:#222c3b;border-color:#3a4758}
+  .btn.primary{background:linear-gradient(180deg,#ff8a50,#ef5f28);border-color:#ff9160;color:#1c0d07;font-weight:650}
+  .btn.primary:hover{filter:brightness(1.06)}
+  .btn:disabled{opacity:.45;cursor:not-allowed;filter:none}
+  .seg{display:flex;border:1px solid var(--line2);border-radius:9px;overflow:hidden}
+  .seg button{
+    border:0;background:#161d27;color:var(--muted);padding:7px 11px;font-size:11.5px;
+  }
+  .seg button + button{border-left:1px solid var(--line2)}
+  .seg button.on{background:var(--accent-soft);color:#ffb489}
+  main{flex:1;display:flex;min-height:0}
+
+  /* 侧栏 */
+  aside{
+    width:264px;flex:none;border-right:1px solid var(--line);background:var(--panel);
+    display:flex;flex-direction:column;min-height:0;
+  }
+  .side-block{padding:12px 12px 6px}
+  .side-title{
+    display:flex;align-items:center;justify-content:space-between;
+    font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--dim);padding:0 4px 8px;
+  }
+  .side-title em{font-style:normal;color:var(--muted);letter-spacing:0;font-size:11px}
+  .side-title .st-right{display:flex;align-items:center;gap:9px;letter-spacing:0}
+  .mini{
+    border:1px solid var(--line2);background:#161d27;color:var(--dim);border-radius:6px;
+    font-size:10px;padding:2px 7px;letter-spacing:0;line-height:1.5;
+  }
+  .mini:hover{color:#ffb489;border-color:#4c3a30}
+  .side-block.grow-block{flex:1;display:flex;flex-direction:column;min-height:0}
+  .atlas-list{padding:0 8px;overflow-y:auto;flex:1;min-height:0}
+  .atlas-item{
+    display:flex;align-items:center;gap:8px;padding:8px 9px;border-radius:9px;cursor:pointer;
+    border:1px solid transparent;margin-bottom:4px;
+  }
+  .atlas-item:hover{background:#1a222d}
+  .atlas-item.active{background:var(--accent-soft);border-color:rgba(255,122,61,.45)}
+  .atlas-item .ai{min-width:0;flex:1}
+  .atlas-item .ai b{display:block;font-size:12.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .atlas-item .ai span{display:block;font-size:10.5px;color:var(--dim);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .atlas-item.active .ai span{color:#c79a83}
+  .del{
+    border:0;background:transparent;color:var(--dim);font-size:15px;line-height:1;padding:4px 5px;border-radius:6px;flex:none;
+  }
+  .del:hover{background:#2a3341;color:var(--danger)}
+  /* 动作区固定两行高度（每行 44px + 间距 3px），其余高度留给图集 */
+  .action-list{flex:none;max-height:104px;overflow-y:auto;padding:0 8px 10px;min-height:0}
+  .action-item{
+    width:100%;display:flex;align-items:center;gap:9px;text-align:left;
+    border:1px solid transparent;background:transparent;border-radius:9px;padding:6px 8px;margin-bottom:3px;
+  }
+  .action-item:hover{background:#1a222d}
+  .action-item.active{background:#1f2936;border-color:#33404f}
+  .action-item canvas{
+    width:30px;height:30px;flex:none;border-radius:6px;background:#0e1319;border:1px solid #222b36;
+  }
+  .action-item .an{flex:1;font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .action-item.active .an{color:#ffb489;font-weight:600}
+  .action-item .ac{font-size:10.5px;color:var(--dim);font-variant-numeric:tabular-nums}
+  .side-foot{padding:10px 16px 14px;font-size:10.5px;line-height:1.7;color:#5d6a7a;border-top:1px solid var(--line);flex:none}
+  .side-empty{padding:8px 14px;font-size:11.5px;color:#5d6a7a;line-height:1.7}
+
+  /* 查看区 */
+  .viewer{flex:1;display:flex;flex-direction:column;min-width:0;padding:16px 20px 14px;gap:12px}
+  .stage{
+    position:relative;flex:1;min-height:0;border-radius:16px;border:1px solid var(--line);
+    display:grid;place-items:center;overflow:hidden;transition:background .2s;
+    box-shadow:inset 0 0 90px rgba(0,0,0,.45);
+  }
+  .stage.bg-dark{
+    background:
+      radial-gradient(circle at 50% 52%, rgba(255,122,61,.09) 0%, rgba(255,122,61,0) 58%),
+      repeating-linear-gradient(0deg, rgba(255,255,255,.022) 0 1px, transparent 1px 40px),
+      repeating-linear-gradient(90deg, rgba(255,255,255,.022) 0 1px, transparent 1px 40px),
+      #0f141a;
+  }
+  .stage.bg-light{
+    background:
+      radial-gradient(circle at 50% 52%, rgba(255,122,61,.07) 0%, transparent 58%),
+      repeating-linear-gradient(0deg, rgba(0,0,0,.035) 0 1px, transparent 1px 40px),
+      repeating-linear-gradient(90deg, rgba(0,0,0,.035) 0 1px, transparent 1px 40px),
+      #eceff3;
+  }
+  .stage.bg-checker{
+    background-color:#141a21;
+    background-image:
+      linear-gradient(45deg,#1d242e 25%,transparent 25%,transparent 75%,#1d242e 75%),
+      linear-gradient(45deg,#1d242e 25%,transparent 25%,transparent 75%,#1d242e 75%);
+    background-size:28px 28px;background-position:0 0,14px 14px;
+  }
+  .stage canvas{
+    max-width:96%;max-height:96%;width:auto;height:auto;
+    filter:drop-shadow(0 16px 28px rgba(0,0,0,.35));
+  }
+  .stage:not(.has-data) canvas{display:none}
+  .badge{
+    position:absolute;left:12px;top:11px;font-size:11.5px;color:var(--muted);
+    background:rgba(10,14,19,.74);border:1px solid var(--line);border-radius:8px;padding:5px 9px;
+    font-variant-numeric:tabular-nums;backdrop-filter:blur(4px);max-width:calc(100% - 24px);
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  }
+  .badge b{color:var(--text);font-weight:600}
+  .badge.hide{display:none}
+  .empty{
+    position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    text-align:center;gap:6px;padding:24px;pointer-events:none;
+  }
+  .stage.has-data .empty{display:none}
+  .empty .ico{
+    width:58px;height:58px;border-radius:16px;border:1px dashed #3a4655;display:grid;place-items:center;
+    font-size:24px;color:#556274;margin-bottom:6px;background:#131a22;
+  }
+  .empty h2{margin:0;font-size:15px;font-weight:600;color:#c8d2de}
+  .empty p{margin:2px 0 10px;font-size:12px;line-height:1.8;color:var(--dim)}
+  .empty .btn{pointer-events:auto}
+  .empty-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+
+  /* 控制条 */
+  .controls{display:flex;align-items:center;gap:10px;flex-wrap:wrap;flex:none}
+  .transport{display:flex;gap:6px}
+  .transport button{
+    border:1px solid var(--line2);background:#1a222d;border-radius:9px;height:36px;min-width:36px;
+    display:grid;place-items:center;font-size:13px;
+  }
+  .transport button:hover{background:#222c3a}
+  .transport button:disabled{opacity:.4;cursor:not-allowed;background:#1a222d}
+  .transport button.play{
+    min-width:96px;background:linear-gradient(180deg,#ff8a50,#ef5f28);border-color:#ff9160;
+    color:#1d0e08;font-weight:650;font-size:12.5px;display:flex;gap:6px;align-items:center;justify-content:center;
+  }
+  .ctl{
+    display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted);
+    border-left:1px solid var(--line);padding-left:12px;height:24px;
+  }
+  input[type=range]{
+    -webkit-appearance:none;appearance:none;width:110px;height:4px;border-radius:4px;background:#2b3542;outline:none;
+  }
+  input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none;width:13px;height:13px;border-radius:50%;background:#fff;border:3px solid var(--accent);
+    box-shadow:0 1px 6px rgba(0,0,0,.45);
+  }
+  .ctl output{min-width:48px;color:var(--text);font-variant-numeric:tabular-nums;font-size:12px}
+  select{
+    background:#161d27;border:1px solid var(--line2);border-radius:8px;padding:5px 8px;font-size:12px;outline:none;
+  }
+  .chk{display:flex;align-items:center;gap:7px;cursor:pointer;user-select:none;color:var(--muted)}
+  .chk input{accent-color:var(--accent);width:14px;height:14px;cursor:pointer}
+  .meta-line{margin-left:auto;font-size:11.5px;color:var(--dim);font-variant-numeric:tabular-nums;white-space:nowrap}
+  .meta-line b{color:#c3cedb;font-weight:600}
+
+  /* 时间轴 */
+  .timeline{
+    display:flex;gap:7px;overflow-x:auto;overflow-y:hidden;flex:none;padding:2px 2px 6px;
+    min-height:86px;align-content:flex-start;
+  }
+  .frame-item{
+    flex:none;width:72px;padding:0;border:1px solid var(--line);border-radius:10px;background:#0f141a;
+    overflow:hidden;position:relative;cursor:pointer;
+  }
+  .frame-item:hover{border-color:#3b4858}
+  .frame-item.active{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset}
+  .frame-item canvas{width:100%;height:64px;display:block;object-fit:contain}
+  .frame-item i{
+    display:block;font-style:normal;font-size:10px;color:var(--dim);padding:3px 0 4px;
+    text-align:center;border-top:1px solid #1b222c;font-variant-numeric:tabular-nums;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  }
+  .frame-item.active i{color:#ffb489}
+  .timeline .tl-empty{font-size:11.5px;color:#5d6a7a;padding:26px 6px}
+
+  /* 拖放 / loading / toast */
+  .dropper{
+    position:fixed;inset:0;z-index:50;display:none;place-items:center;
+    background:rgba(8,11,15,.78);backdrop-filter:blur(4px);
+  }
+  .dropper.on{display:grid}
+  .dropper div{
+    border:2px dashed rgba(255,122,61,.65);border-radius:20px;padding:44px 60px;text-align:center;
+    background:rgba(21,27,36,.9);box-shadow:0 30px 80px rgba(0,0,0,.5);
+  }
+  .dropper b{display:block;font-size:16px;margin-bottom:6px}
+  .dropper span{font-size:12px;color:var(--muted)}
+  .busy{
+    position:fixed;left:50%;bottom:26px;transform:translateX(-50%);z-index:60;display:none;
+    align-items:center;gap:9px;padding:9px 16px;border-radius:10px;background:#1b2430;
+    border:1px solid var(--line2);font-size:12px;box-shadow:0 14px 34px rgba(0,0,0,.45);
+  }
+  .busy.on{display:flex}
+  .spin{
+    width:13px;height:13px;border-radius:50%;border:2px solid #3b4656;border-top-color:var(--accent);
+    animation:sp .7s linear infinite;
+  }
+  @keyframes sp{to{transform:rotate(360deg)}}
+  .toast{
+    position:fixed;right:20px;top:76px;z-index:70;max-width:min(440px,86vw);
+    background:#241417;border:1px solid #5b2a2a;color:#ffb4b4;border-radius:11px;padding:11px 14px;
+    font-size:12px;line-height:1.7;box-shadow:0 14px 34px rgba(0,0,0,.45);
+    opacity:0;transform:translateY(8px);pointer-events:none;transition:.22s;white-space:pre-line;
+  }
+  .toast.on{opacity:1;transform:none}
+  .toast.info{background:#121b25;border-color:#2c4056;color:#bccddf}
+
+  @media (max-width:860px){
+    body{overflow:auto}
+    main{flex-direction:column}
+    aside{width:100%;border-right:0;border-bottom:1px solid var(--line);max-height:44vh;overflow-y:auto}
+    .side-block.grow-block{flex:none}
+    .atlas-list{flex:none;max-height:16vh}
+    .action-list{max-height:104px;display:flex;flex-wrap:wrap;gap:4px}
+    .action-item{width:auto;max-width:100%}
+    .viewer{padding:12px}
+    .stage{min-height:300px}
+    .meta-line{width:100%;margin-left:0}
+    .ctl{border-left:0;padding-left:0}
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">
+    <div class="logo">◈</div>
+    <div>
+      <h1>精灵动画预览器</h1>
+      <p>拖入一次即自动记住，下次打开直接可用 · 支持 .plist / .json 图集与多套载入</p>
+    </div>
+  </div>
+  <div class="grow"></div>
+  <div class="toolbar">
+    <div class="seg" id="bgSeg" title="背景">
+      <button data-bg="dark" class="on">深色</button>
+      <button data-bg="light">浅色</button>
+      <button data-bg="checker">棋盘</button>
+    </div>
+    <button class="btn" id="folderBtn">选择文件夹…</button>
+    <button class="btn primary" id="openBtn">打开文件…</button>
+    <input type="file" id="folderInput" webkitdirectory directory multiple hidden>
+    <input type="file" id="fileInput" multiple hidden
+           accept=".plist,.json,.png,.jpg,.jpeg,.webp,application/xml,application/json,image/png,image/jpeg,image/webp">
+  </div>
+</header>
+
+<main>
+  <aside>
+    <div class="side-block grow-block">
+      <div class="side-title">图集 <span class="st-right"><em id="atlasCount">0</em><button class="mini" id="clearStore" title="清空所有图集和本地记忆">清空</button></span></div>
+      <div class="atlas-list" id="atlasList"></div>
+      <div class="side-empty" id="atlasEmpty">尚未载入图集<br>拖入 plist + png 即可预览</div>
+    </div>
+    <div class="side-block" style="padding-bottom:4px">
+      <div class="side-title">动作 <em id="actionCount"></em></div>
+    </div>
+    <div class="action-list" id="actionList"></div>
+    <div class="side-foot">
+      图集保存在本浏览器中，刷新或重开页面会自动恢复。<br>
+      帧名末尾数字作为帧序：<b style="color:#8f9daf;font-weight:500">attack8_0008 → attack8</b>
+    </div>
+  </aside>
+
+  <section class="viewer">
+    <div class="stage bg-dark" id="stage">
+      <div class="badge hide" id="badge"></div>
+      <canvas id="screen"></canvas>
+      <div class="empty">
+        <div class="ico">＋</div>
+        <h2>拖入精灵图集</h2>
+        <p>.plist / .json + 贴图，一起拖入或整个文件夹拖入<br>贴图按 plist 里记录的文件名或同名文件自动匹配</p>
+        <div class="empty-actions">
+          <button class="btn primary" id="pickBtn">选择文件</button>
+          <button class="btn" id="pickFolderBtn">选择文件夹</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="controls">
+      <div class="transport">
+        <button id="prevBtn" title="上一帧 (←)">◀</button>
+        <button class="play" id="playBtn">⏸ 暂停</button>
+        <button id="nextBtn" title="下一帧 (→)">▶</button>
+      </div>
+      <div class="ctl">
+        <span>帧率</span>
+        <input type="range" id="fpsRange" min="1" max="60" step="1" value="30">
+        <output id="fpsOut">30 fps</output>
+      </div>
+      <div class="ctl">
+        <span>计时</span>
+        <select id="modeSel">
+          <option value="index">按帧号间隔</option>
+          <option value="uniform">均匀播放</option>
+        </select>
+      </div>
+      <label class="ctl chk"><input type="checkbox" id="loopChk" checked>循环</label>
+      <label class="ctl chk"><input type="checkbox" id="onionChk">洋葱皮</label>
+      <div class="meta-line" id="metaLine"></div>
+    </div>
+
+    <div class="timeline" id="timeline">
+      <div class="tl-empty">载入图集后，这里会列出当前动作的序列帧。</div>
+    </div>
+  </section>
+</main>
+
+<div class="dropper" id="dropper"><div><b>松开鼠标载入</b><span>支持 .plist / .json + 贴图，也支持整个文件夹</span></div></div>
+<div class="busy" id="busy"><div class="spin"></div><span id="busyText">正在解析图集…</span></div>
+<div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+const $ = s => document.querySelector(s);
+const collator = new Intl.Collator(undefined, {numeric:true, sensitivity:'base'});
+
+const els = {
+  stage: $('#stage'), screen: $('#screen'), badge: $('#badge'),
+  atlasList: $('#atlasList'), atlasEmpty: $('#atlasEmpty'), atlasCount: $('#atlasCount'),
+  actionList: $('#actionList'), actionCount: $('#actionCount'),
+  timeline: $('#timeline'), metaLine: $('#metaLine'),
+  playBtn: $('#playBtn'), prevBtn: $('#prevBtn'), nextBtn: $('#nextBtn'),
+  fpsRange: $('#fpsRange'), fpsOut: $('#fpsOut'), modeSel: $('#modeSel'),
+  loopChk: $('#loopChk'), onionChk: $('#onionChk'),
+  dropper: $('#dropper'), busy: $('#busy'), busyText: $('#busyText'), toast: $('#toast'),
+  fileInput: $('#fileInput'), folderInput: $('#folderInput')
+};
+const ctx = els.screen.getContext('2d');
+
+const state = {
+  atlases: [], currentId: null, actionKey: null, idx: 0,
+  playing: true, acc: 0, last: 0,
+  fps: 30, mode: 'index', loop: true, onion: false, bg: 'dark'
+};
+const filePool = new Map(); // 小写文件名 -> File，跨批次保留，便于后补贴图
+
+/* ---------- 偏好 ---------- */
+try {
+  const p = JSON.parse(localStorage.getItem('spriteStudioPrefs') || '{}');
+  for (const k of ['fps','mode','loop','onion','bg']) if (k in p) state[k] = p[k];
+} catch (e) {}
+function savePrefs(){
+  try {
+    localStorage.setItem('spriteStudioPrefs', JSON.stringify({
+      fps: state.fps, mode: state.mode, loop: state.loop, onion: state.onion, bg: state.bg
+    }));
+  } catch (e) {}
+}
+
+/* ---------- 通用工具 ---------- */
+const yieldUI = () => new Promise(r => setTimeout(r, 0));
+const stripExt = n => n.replace(/\.(plist|json|png|jpe?g|webp)$/i, '');
+const isImage = n => /\.(png|jpe?g|webp)$/i.test(n);
+const isAtlas = n => /\.(plist|json)$/i.test(n);
+
+function toast(msg, ms = 4800, type = 'error'){
+  els.toast.textContent = msg;
+  els.toast.className = 'toast' + (type === 'info' ? ' info' : '') + ' on';
+  clearTimeout(toast._t);
+  toast._t = setTimeout(() => els.toast.classList.remove('on'), ms);
+}
+function busy(on, text){
+  els.busy.classList.toggle('on', on);
+  if (text) els.busyText.textContent = text;
+  $('#openBtn').disabled = on;
+  $('#folderBtn').disabled = on;
+}
+
+function naturalSort(arr, key){
+  return arr.slice().sort((a, b) => collator.compare(key(a), key(b)));
+}
+
+/* ---------- 本地记忆（IndexedDB） ---------- */
+let dbPromise = null;
+function getDB(){
+  if (!dbPromise) {
+    dbPromise = new Promise((resolve, reject) => {
+      if (!window.indexedDB) { reject(new Error('浏览器不支持 IndexedDB')); return; }
+      const req = indexedDB.open('spriteStudio', 1);
+      req.onupgradeneeded = () => {
+        const db = req.result;
+        if (!db.objectStoreNames.contains('atlases')) db.createObjectStore('atlases', { keyPath: 'fileName' });
+      };
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+      req.onblocked = () => reject(new Error('数据库被占用'));
+    });
+    dbPromise.catch(() => { dbPromise = null; });
+  }
+  return dbPromise;
+}
+async function dbPut(rec){
+  const db = await getDB();
+  return new Promise((res, rej) => {
+    const tx = db.transaction('atlases', 'readwrite');
+    tx.objectStore('atlases').put(rec);
+    tx.oncomplete = res;
+    tx.onerror = () => rej(tx.error);
+    tx.onabort = () => rej(tx.error);
+  });
+}
+async function dbGetAll(){
+  const db = await getDB();
+  return new Promise((res, rej) => {
+    const tx = db.transaction('atlases');
+    const q = tx.objectStore('atlases').getAll();
+    q.onsuccess = () => res(q.result || []);
+    q.onerror = () => rej(q.error);
+  });
+}
+async function dbDelete(name){
+  const db = await getDB();
+  return new Promise((res, rej) => {
+    const tx = db.transaction('atlases', 'readwrite');
+    tx.objectStore('atlases').delete(name);
+    tx.oncomplete = res;
+    tx.onerror = () => rej(tx.error);
+  });
+}
+async function dbClear(){
+  const db = await getDB();
+  return new Promise((res, rej) => {
+    const tx = db.transaction('atlases', 'readwrite');
+    tx.objectStore('atlases').clear();
+    tx.oncomplete = res;
+    tx.onerror = () => rej(tx.error);
+  });
+}
+
+function saveLast(){
+  const a = curAtlas();
+  try {
+    if (a) {
+      localStorage.setItem('spriteStudioLast', JSON.stringify({ atlas: a.fileName }));
+    } else {
+      localStorage.removeItem('spriteStudioLast');
+    }
+  } catch (e) {}
+}
+
+/* ---------- 文本 / plist / json ---------- */
+async function readText(file){
+  const buf = await file.arrayBuffer();
+  const u = new Uint8Array(buf);
+  if (u[0] === 0xEF && u[1] === 0xBB && u[2] === 0xBF) return new TextDecoder('utf-8').decode(buf.slice(3));
+  if (u[0] === 0xFF && u[1] === 0xFE) return new TextDecoder('utf-16le').decode(buf.slice(2));
+  if (u[0] === 0xFE && u[1] === 0xFF) return new TextDecoder('utf-16be').decode(buf.slice(2));
+  return new TextDecoder('utf-8').decode(buf);
+}
+
+function plistValue(el){
+  switch (el.nodeName) {
+    case 'dict': {
+      const o = {}; const ch = [...el.children];
+      for (let i = 0; i < ch.length; i += 2) {
+        const k = ch[i].textContent.trim(); const v = ch[i + 1];
+        if (k && v) o[k] = plistValue(v);
+      }
+      return o;
+    }
+    case 'array': return [...el.children].map(plistValue);
+    case 'integer': return parseInt(el.textContent.trim(), 10);
+    case 'real': return parseFloat(el.textContent.trim());
+    case 'true': return true;
+    case 'false': return false;
+    default: return el.textContent;
+  }
+}
+
+function parseAtlasText(text, filename){
+  if (/^\s*bplist/.test(text)) throw new Error('二进制 plist 暂不支持，请导出为 XML plist');
+  if (/\.json$/i.test(filename)) return JSON.parse(text);
+  const doc = new DOMParser().parseFromString(text, 'application/xml');
+  if (doc.querySelector('parsererror')) throw new Error('plist XML 解析失败');
+  const root = doc.documentElement;
+  const first = [...root.children].find(n => !['#text', '#comment'].includes(n.nodeName));
+  if (!first) throw new Error('plist 内容为空');
+  return plistValue(first);
+}
+
+/* ---------- 帧几何信息 ---------- */
+function parseNums(s){
+  return (String(s).match(/-?\d+(?:\.\d+)?/g) || []).map(Number);
+}
+function parseRect(v){
+  if (v && typeof v === 'object') {
+    return { x:+v.x || 0, y:+v.y || 0, w:+(v.w ?? v.width) || 0, h:+(v.h ?? v.height) || 0 };
+  }
+  const n = parseNums(v || '');
+  return { x:n[0] || 0, y:n[1] || 0, w:n[2] || 0, h:n[3] || 0 };
+}
+function parseSize(v){
+  if (v && typeof v === 'object') {
+    const w = +(v.w ?? v.width) || 0, h = +(v.h ?? v.height) || 0;
+    return { x:+(v.x ?? 0) || 0, y:+(v.y ?? 0) || 0, w, h };
+  }
+  const n = parseNums(v || '');
+  return { x:0, y:0, w:n[0] || 0, h:n[1] || 0 };
+}
+
+function parseOffset(v){
+  if (v && typeof v === 'object') {
+    return { x: +(v.x ?? 0) || 0, y: +(v.y ?? 0) || 0 };
+  }
+  const n = parseNums(v || '');
+  return { x: n[0] || 0, y: n[1] || 0 };
+}
+
+function frameGeom(d){
+  let rect, rotated = false, w, h, srcW, srcH, px = 0, py = 0;
+
+  // TexturePacker JSON（frame 为对象）
+  if (d.frame && typeof d.frame === 'object') {
+    rect = parseRect(d.frame);
+    rotated = !!(d.rotated ?? d.textureRotated);
+    const trim = d.spriteSourceSize ? parseRect(d.spriteSourceSize) : null;
+    w = trim ? trim.w : rect.w;
+    h = trim ? trim.h : rect.h;
+    const src = d.sourceSize ? parseSize(d.sourceSize) : null;
+    srcW = src ? src.w : w;
+    srcH = src ? src.h : h;
+    if (trim) { px = trim.x; py = trim.y; } else { px = (srcW - w) / 2; py = (srcH - h) / 2; }
+    return { rect, w, h, rotated, srcW, srcH, px, py };
+  }
+
+  // Cocos / TexturePacker format 3（textureRect + spriteSize）
+  if (d.textureRect) {
+    rect = parseRect(d.textureRect);
+    rotated = !!(d.textureRotated ?? d.rotated);
+    const trim = d.spriteSize ? parseSize(d.spriteSize) : { w:rect.w, h:rect.h };
+    const src = d.sourceSize ? parseSize(d.sourceSize)
+              : (d.spriteSourceSize ? parseSize(d.spriteSourceSize) : trim);
+    w = trim.w || rect.w; h = trim.h || rect.h;
+    srcW = src.w || w; srcH = src.h || h;
+    const off = d.spriteOffset ? parseOffset(d.spriteOffset) : parseOffset(d.offset || '');
+    px = (srcW - w) / 2 + off.x;
+    py = (srcH - h) / 2 - off.y;
+    return { rect, w, h, rotated, srcW, srcH, px, py };
+  }
+
+  // Cocos format 2（frame 字符串 + sourceColorRect / sourceSize）
+  if (typeof d.frame === 'string' || d.sourceColorRect) {
+    rect = parseRect(d.frame || '');
+    rotated = !!d.rotated;
+    w = rect.w; h = rect.h;
+    const src = d.sourceSize ? parseSize(d.sourceSize) : { w, h };
+    srcW = src.w || w; srcH = src.h || h;
+    if (d.sourceColorRect) {
+      const scr = parseRect(d.sourceColorRect);
+      px = scr.x; py = scr.y;
+    } else {
+      const off = parseOffset(d.offset || '');
+      px = (srcW - w) / 2 + off.x;
+      py = (srcH - h) / 2 - off.y;
+    }
+    return { rect, w, h, rotated, srcW, srcH, px, py };
+  }
+
+  // 老版格式 0/1（x/y/width/height）
+  if ('x' in d || 'width' in d) {
+    rect = { x:+d.x || 0, y:+d.y || 0, w:+d.width || 0, h:+d.height || 0 };
+    rotated = !!d.rotated;
+    w = rect.w; h = rect.h;
+    srcW = +(d.originalWidth ?? w) || w;
+    srcH = +(d.originalHeight ?? h) || h;
+    const off = parseOffset(`${d.offsetX || 0},${d.offsetY || 0}`);
+    px = (srcW - w) / 2 + off.x;
+    py = (srcH - h) / 2 - off.y;
+    return { rect, w, h, rotated, srcW, srcH, px, py };
+  }
+  return null;
+}
+
+/* ---------- 图像 ---------- */
+function loadImage(file){
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => resolve({ img, url });
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('贴图无法解码：' + file.name)); };
+    img.src = url;
+  });
+}
+
+function buildFrameCanvas(img, g){
+  const { rect, w, h, rotated, srcW, srcH } = g;
+  const out = document.createElement('canvas');
+  out.width = Math.max(1, Math.round(srcW));
+  out.height = Math.max(1, Math.round(srcH));
+  const o = out.getContext('2d');
+
+  const pw = rotated ? h : w;   // 图集中实际占用宽度
+  const ph = rotated ? w : h;
+
+  if (rotated) {
+    const tmp = document.createElement('canvas');
+    tmp.width = Math.max(1, Math.round(w));
+    tmp.height = Math.max(1, Math.round(h));
+    const t = tmp.getContext('2d');
+    t.translate(w / 2, h / 2);
+    t.rotate(-Math.PI / 2);
+    t.drawImage(img, rect.x, rect.y, pw, ph, -h / 2, -w / 2, h, w);
+    o.drawImage(tmp, Math.round(g.px), Math.round(g.py));
+  } else {
+    o.drawImage(img, rect.x, rect.y, w, h, Math.round(g.px), Math.round(g.py), w, h);
+  }
+  return out;
+}
+
+function makeThumb(source, size){
+  const t = document.createElement('canvas');
+  t.width = t.height = size;
+  const c = t.getContext('2d');
+  const s = Math.min(size / source.width, size / source.height);
+  c.drawImage(source, (size - source.width * s) / 2, (size - source.height * s) / 2,
+              source.width * s, source.height * s);
+  return t;
+}
+
+/* ---------- 动作分组 ---------- */
+function groupFrames(frames){
+  const groups = new Map();
+  for (const fr of frames) {
+    const label = stripExt(fr.name);
+    const m = label.match(/^(.*?)([_\-\s]*)(\d+)$/);
+    let key, index = null;
+    if (m) {
+      index = parseInt(m[3], 10);
+      key = m[1] ? m[1].replace(/[_\-\s]+$/, '').trim() : 'frames';
+    } else {
+      key = label;
+    }
+    fr.label = label;
+    fr.index = index;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(fr);
+  }
+
+  const actions = [];
+  for (const [key, list] of groups) {
+    list.sort((a, b) => (a.index != null && b.index != null)
+      ? a.index - b.index
+      : collator.compare(a.label, b.label));
+    actions.push({ key, label:key, frames:list });
+  }
+  actions.sort((a, b) => collator.compare(a.label, b.label));
+
+  if (frames.length > 1) {
+    actions.unshift({
+      key: '__all__', label: '全部帧', special: true,
+      frames: naturalSort(frames, f => f.label)
+    });
+  }
+  return actions;
+}
+
+/* ---------- 载入 ---------- */
+function defaultActionOf(atlas){
+  const all = atlas.actions.find(a => a.key === '__all__');
+  if (all) return all;
+  return atlas.actions.filter(a => !a.special)[0] || atlas.actions[0] || null;
+}
+function pickTexture(texName, atlasFile, pool){
+  const cands = [];
+  if (texName) cands.push(String(texName).split(/[\\/]/).pop());
+  const base = stripExt(atlasFile.name);
+  cands.push(base + '.png', base + '.jpg', base + '.jpeg', base + '.webp');
+  for (const c of cands) {
+    const f = pool.get(c.toLowerCase());
+    if (f) return f;
+  }
+  return null;
+}
+
+async function buildAtlas(atlasFile, pool){
+  const text = await readText(atlasFile);
+  const root = parseAtlasText(text, atlasFile.name);
+  const framesObj = root && root.frames;
+  if (!framesObj) throw new Error('图集里没有 frames 字段');
+
+  const meta = root.metadata || root.meta || {};
+  const texName = meta.textureFileName || meta.realTextureFileName || meta.image || '';
+  const entries = Array.isArray(framesObj)
+    ? framesObj.filter(e => e && e.filename).map(e => [e.filename, e])
+    : Object.entries(framesObj).filter(([, v]) => v && typeof v === 'object');
+  if (!entries.length) throw new Error('图集内没有任何帧');
+
+  const texFile = pickTexture(texName, atlasFile, pool);
+  if (!texFile) {
+    throw new Error('缺少贴图 ' + (texName || stripExt(atlasFile.name) + '.png') + '，请把贴图一起拖入');
+  }
+
+  const frames = [];
+  for (const [name, data] of entries) {
+    const g = frameGeom(data);
+    if (!g || !g.rect.w || !g.rect.h) continue;
+    frames.push({
+      name, label: stripExt(name), index: null, geom: g,
+      canvas: null, thumb: null, w: 0, h: 0
+    });
+  }
+  if (!frames.length) throw new Error('没有解析出有效帧');
+
+  let tw = 0, th = 0;
+  if (meta.size) { const sz = parseSize(meta.size); tw = sz.w; th = sz.h; }
+
+  return {
+    id: 'atlas_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
+    name: stripExt(atlasFile.name),
+    fileName: atlasFile.name,
+    textureName: texFile.name,
+    texFile,
+    textureSize: [tw, th],
+    actions: groupFrames(frames),
+    frames,
+    frameCount: frames.length,
+    built: false,
+    building: null,
+    sourceText: text,
+    textureFile: texFile
+  };
+}
+
+/* 只给当前选中的图集生成帧画布，避免一次载入很多图集时内存爆掉 */
+async function ensureAtlas(atlas){
+  if (!atlas) return;
+  if (atlas.built) return;
+  if (atlas.building) return atlas.building;
+  atlas.building = (async () => {
+    const { img, url } = await loadImage(atlas.texFile);
+    try {
+      let n = 0;
+      for (const fr of atlas.frames) {
+        fr.canvas = buildFrameCanvas(img, fr.geom);
+        fr.thumb = makeThumb(fr.canvas, 80);
+        fr.w = fr.canvas.width;
+        fr.h = fr.canvas.height;
+        if (++n % 12 === 0) await yieldUI();
+      }
+      await yieldUI();
+      atlas.textureSize = [img.naturalWidth, img.naturalHeight];
+      atlas.built = true;
+    } finally {
+      URL.revokeObjectURL(url);
+      atlas.building = null;
+    }
+  })();
+  return atlas.building;
+}
+
+function releaseAtlas(atlas){
+  if (!atlas || !atlas.built) return;
+  for (const fr of atlas.frames) {
+    if (fr.canvas) {
+      fr.canvas.width = 0;
+      fr.canvas.height = 0;
+    }
+    fr.canvas = null;
+    fr.thumb = null;
+    fr.w = 0;
+    fr.h = 0;
+  }
+  atlas.built = false;
+}
+
+function releaseOthers(keepId){
+  for (const a of state.atlases) if (a.id !== keepId) releaseAtlas(a);
+}
+
+let activateSeq = 0;
+async function activateAtlas(atlas){
+  const my = ++activateSeq;
+  if (!atlas) {
+    renderAtlases(); renderActions(); renderTimeline(); render(); syncPlayBtn();
+    return;
+  }
+  state.actionKey = (defaultActionOf(atlas) || {}).key || null;
+  state.idx = 0; state.acc = 0; state.playing = true;
+  renderAtlases();
+  busy(true, '正在准备「' + atlas.name + '」…');
+  try {
+    await ensureAtlas(atlas);
+  } catch (e) {
+    toast('「' + atlas.name + '」：' + (e && e.message ? e.message : e));
+  }
+  if (my !== activateSeq) {
+    if (state.currentId !== atlas.id) releaseAtlas(atlas);
+    return;
+  }
+  releaseOthers(atlas.id);
+  busy(false);
+  renderAtlases();
+  renderActions();
+  renderTimeline();
+  render();
+  syncPlayBtn();
+  saveLast();
+}
+
+async function loadFiles(fileList, opts = {}){
+  const files = [...fileList].filter(f => f && (isAtlas(f.name) || isImage(f.name)));
+  if (!files.length){ toast('没有可识别的文件（需要 .plist/.json 图集或 png/jpg/webp 贴图）'); return; }
+
+  for (const f of files) filePool.set(f.name.toLowerCase(), f);
+
+  const atlasFiles = naturalSort(files.filter(f => isAtlas(f.name)), f => f.name);
+  const imageFiles = files.filter(f => isImage(f.name));
+  if (!atlasFiles.length) {
+    toast(imageFiles.length === 1
+      ? '这只拖入了贴图，还需要对应的 .plist / .json'
+      : '只拖入了贴图，还需要对应的 .plist / .json 图集');
+    return;
+  }
+
+  busy(true, '正在解析 ' + atlasFiles.length + ' 个图集…');
+  const errors = [];
+  let persistError = null;
+  let added = 0, firstLoaded = null;
+
+  for (const file of atlasFiles) {
+    try {
+      const atlas = await buildAtlas(file, filePool);
+      const old = state.atlases.findIndex(a => a.fileName === file.name);
+      if (old >= 0) {
+        releaseAtlas(state.atlases[old]);
+        state.atlases.splice(old, 1);
+      }
+      state.atlases.push(atlas);
+      added++;
+      if (opts.persist !== false) {
+        try {
+          await dbPut({
+            fileName: file.name,
+            text: atlas.sourceText,
+            textureName: atlas.textureFile.name,
+            textureType: atlas.textureFile.type || '',
+            texture: atlas.textureFile,
+            addedAt: Date.now()
+          });
+        } catch (e) { persistError = e; }
+      }
+      if (added === 1) {
+        firstLoaded = atlas;
+        state.currentId = atlas.id;
+        state.actionKey = (defaultActionOf(atlas) || {}).key || null;
+        state.idx = 0; state.acc = 0; state.playing = true;
+      }
+      if (added % 5 === 0) {
+        busy(true, '正在解析 ' + added + '/' + atlasFiles.length + ' 个图集…');
+        await yieldUI();
+      }
+    } catch (err) {
+      errors.push(file.name + '：' + (err && err.message ? err.message : err));
+    }
+  }
+
+  busy(false);
+  if (errors.length) {
+    toast(errors.join('\n'));
+  } else if (added === 1 && firstLoaded) {
+    const normal = firstLoaded.actions.filter(x => !x.special);
+    if (normal.length > 1) {
+      const chosen = defaultActionOf(firstLoaded);
+      const parts = normal.slice(0, 6).map(x => x.label + ' ' + x.frames.length + '帧');
+      if (normal.length > 6) parts.push('等 ' + normal.length + ' 个动作');
+      toast('「' + firstLoaded.name + '」共 ' + firstLoaded.frameCount + ' 帧，拆分为 ' + normal.length +
+            ' 个动作：' + parts.join('、') + '。已默认预览「' + chosen.label + '」，可在左侧切换。',
+            7000, 'info');
+    }
+  }
+  if (added) {
+    renderAtlases();
+    await activateAtlas(firstLoaded || curAtlas());
+  }
+}
+
+/* ---------- 从本地恢复 ---------- */
+async function restoreSaved(){
+  let records;
+  try { records = await dbGetAll(); } catch (e) { return; }
+  records = (records || []).filter(r => r && r.fileName && typeof r.text === 'string' && r.texture);
+  if (!records.length) return;
+  records.sort((a, b) => (a.addedAt || 0) - (b.addedAt || 0));
+
+  busy(true, '正在恢复 ' + records.length + ' 个图集…');
+  const errors = [];
+  for (let i = 0; i < records.length; i++) {
+    const r = records[i];
+    els.busyText.textContent = '正在恢复 ' + (i + 1) + '/' + records.length + '：' + r.fileName;
+    try {
+      const type = /\.json$/i.test(r.fileName) ? 'application/json' : 'text/xml';
+      const atlasFile = new File([r.text], r.fileName, { type });
+      const texFile = new File([r.texture], r.textureName || (stripExt(r.fileName) + '.png'),
+                               { type: r.textureType || (r.texture && r.texture.type) || 'image/png' });
+      filePool.set(texFile.name.toLowerCase(), texFile);
+      const atlas = await buildAtlas(atlasFile, filePool);
+      if (!state.atlases.some(a => a.fileName === atlas.fileName)) state.atlases.push(atlas);
+    } catch (e) {
+      errors.push(r.fileName + '：' + (e && e.message ? e.message : e));
+    }
+    await yieldUI();
+  }
+  busy(false);
+  if (!state.atlases.length) {
+    if (errors.length) toast(errors.join(String.fromCharCode(10)), 6500);
+    return;
+  }
+
+  let last = null;
+  try { last = JSON.parse(localStorage.getItem('spriteStudioLast') || 'null'); } catch (e) {}
+  const target = (last && state.atlases.find(a => a.fileName === last.atlas)) || state.atlases[0];
+  state.currentId = target.id;
+  renderAtlases();
+  await activateAtlas(target);
+  if (errors.length) toast(errors.join(String.fromCharCode(10)), 6500);
+}
+
+/* ---------- 渲染 ---------- */
+const curAtlas = () => state.atlases.find(a => a.id === state.currentId) || null;
+function curAction(){
+  const a = curAtlas();
+  return a ? (a.actions.find(x => x.key === state.actionKey) || null) : null;
+}
+const curFrames = () => { const a = curAction(); return a ? a.frames : []; };
+const curFrame = () => curFrames()[state.idx] || null;
+
+function renderAtlases(){
+  els.atlasList.innerHTML = '';
+  els.atlasCount.textContent = state.atlases.length;
+  els.atlasEmpty.style.display = state.atlases.length ? 'none' : '';
+  for (const a of state.atlases) {
+    const row = document.createElement('div');
+    row.className = 'atlas-item' + (a.id === state.currentId ? ' active' : '');
+    row.title = a.fileName + ' + ' + a.textureName + ' · ' +
+      a.actions.filter(x => !x.special).map(x => x.label + ' ' + x.frames.length + '帧').join('、');
+    const info = document.createElement('div');
+    info.className = 'ai';
+    const b = document.createElement('b'); b.textContent = a.name;
+    const s = document.createElement('span');
+    const sizeTxt = a.textureSize[0] ? `${a.textureSize[0]}×${a.textureSize[1]}` : '—';
+    s.textContent = `${a.frameCount} 帧 · ${a.actions.filter(x => !x.special).length} 个动作 · ${sizeTxt}`;
+    info.append(b, s);
+    const del = document.createElement('button');
+    del.className = 'del'; del.textContent = '×'; del.title = '移除并清除本地记忆';
+    del.onclick = e => { e.stopPropagation(); removeAtlas(a.id); };
+    row.append(info, del);
+    row.onclick = () => selectAtlas(a.id);
+    els.atlasList.appendChild(row);
+  }
+}
+
+function removeAtlas(id){
+  const i = state.atlases.findIndex(a => a.id === id);
+  if (i < 0) return;
+  const removed = state.atlases[i];
+  releaseAtlas(removed);
+  state.atlases.splice(i, 1);
+  dbDelete(removed.fileName).catch(() => toast('清除本地记忆失败：' + removed.fileName));
+  if (state.currentId === id) {
+    const next = state.atlases[i] || state.atlases[i - 1] || null;
+    state.currentId = next ? next.id : null;
+    state.idx = 0; state.acc = 0; state.playing = true;
+    activateAtlas(next);
+  } else {
+    renderAtlases();
+  }
+  saveLast();
+}
+
+function selectAtlas(id){
+  if (state.currentId === id) return;
+  const a = state.atlases.find(x => x.id === id);
+  if (!a) return;
+  state.currentId = id;
+  activateAtlas(a);
+}
+
+function renderActions(){
+  els.actionList.innerHTML = '';
+  const a = curAtlas();
+  if (!a) { els.actionCount.textContent = ''; return; }
+  const list = a.actions;
+  els.actionCount.textContent = list.filter(x => !x.special).length + ' 个';
+  for (const act of list) {
+    const btn = document.createElement('button');
+    btn.className = 'action-item' + (act.key === state.actionKey ? ' active' : '');
+    btn.title = act.label + ' · ' + act.frames.length + ' 帧';
+    const mini = document.createElement('canvas');
+    mini.width = mini.height = 30;
+    const mc = mini.getContext('2d');
+    const thumb = act.frames[0].thumb;
+    if (thumb) mc.drawImage(thumb, 0, 0, 30, 30);
+    const name = document.createElement('span');
+    name.className = 'an'; name.textContent = act.label;
+    const cnt = document.createElement('span');
+    cnt.className = 'ac'; cnt.textContent = act.frames.length;
+    btn.append(mini, name, cnt);
+    btn.onclick = () => selectAction(act.key);
+    els.actionList.appendChild(btn);
+  }
+}
+
+function selectAction(key){
+  if (state.actionKey === key) return;
+  state.actionKey = key;
+  state.idx = 0; state.acc = 0; state.playing = true;
+  renderActions(); renderTimeline(); render(); syncPlayBtn();
+  saveLast();
+}
+
+function renderTimeline(){
+  els.timeline.innerHTML = '';
+  const frames = curFrames();
+  if (!frames.length) {
+    const d = document.createElement('div');
+    d.className = 'tl-empty';
+    d.textContent = state.atlases.length ? '当前动作没有帧。' : '载入图集后，这里会列出当前动作的序列帧。';
+    els.timeline.appendChild(d);
+    return;
+  }
+  frames.forEach((fr, i) => {
+    const b = document.createElement('button');
+    b.className = 'frame-item' + (i === state.idx ? ' active' : '');
+    b.title = fr.name + ' · ' + Math.round(holdOf(i)) + 'ms';
+    const cv = document.createElement('canvas');
+    cv.width = cv.height = 80;
+    if (fr.thumb) cv.getContext('2d').drawImage(fr.thumb, 0, 0);
+    const lab = document.createElement('i');
+    lab.textContent = fr.index != null ? fr.index : (i + 1);
+    b.append(cv, lab);
+    b.onclick = () => { state.idx = i; state.acc = 0; render(); };
+    els.timeline.appendChild(b);
+  });
+}
+
+function drawScreen(){
+  const fr = curFrame();
+  if (!fr || !fr.canvas) { els.screen.width = els.screen.height = 1; els.badge.classList.add('hide'); return; }
+  if (els.screen.width !== fr.canvas.width || els.screen.height !== fr.canvas.height) {
+    els.screen.width = fr.canvas.width;
+    els.screen.height = fr.canvas.height;
+  }
+  ctx.clearRect(0, 0, els.screen.width, els.screen.height);
+  const frames = curFrames();
+  if (state.onion && state.idx > 0 && frames[state.idx - 1].canvas) {
+    ctx.globalAlpha = 0.22;
+    ctx.drawImage(frames[state.idx - 1].canvas, 0, 0);
+    ctx.globalAlpha = 1;
+  }
+  ctx.drawImage(fr.canvas, 0, 0);
+}
+
+function render(){
+  const atlas = curAtlas(), act = curAction(), frames = curFrames(), fr = curFrame();
+  const has = !!atlas && frames.length > 0 && !!(fr && fr.canvas);
+  els.stage.classList.toggle('has-data', has);
+  els.playBtn.disabled = els.prevBtn.disabled = els.nextBtn.disabled = !has;
+  drawScreen();
+
+  if (atlas && act && fr && fr.canvas) {
+    els.badge.classList.remove('hide');
+    els.badge.innerHTML = '';
+    const b = document.createElement('b'); b.textContent = act.label;
+    els.badge.append(b, document.createTextNode(
+      ` · 帧 ${fr.index != null ? fr.index : state.idx + 1} · ${state.idx + 1}/${frames.length} · ${fr.w}×${fr.h} · ${Math.round(holdOf(state.idx))}ms`
+    ));
+    els.metaLine.innerHTML = `<b>${atlas.name}</b> · ${atlas.textureName} · ${atlas.frameCount} 帧 / ${atlas.actions.filter(x => !x.special).length} 动作`;
+  } else {
+    els.badge.classList.add('hide');
+    els.metaLine.textContent = '';
+  }
+
+  [...els.timeline.children].forEach((el, i) => el.classList.toggle('active', i === state.idx));
+}
+
+/* ---------- 播放 ---------- */
+function holdOf(i){
+  const frames = curFrames();
+  const fr = frames[i];
+  if (!fr) return 1000 / state.fps;
+  if (state.mode === 'uniform' || state.actionKey === '__all__' || fr.index == null) {
+    return 1000 / state.fps;
+  }
+  const next = frames[i + 1];
+  const gap = next && next.index != null ? Math.max(1, next.index - fr.index) : 1;
+  return gap / state.fps * 1000;
+}
+
+function syncPlayBtn(){
+  els.playBtn.textContent = state.playing ? '⏸ 暂停' : '▶ 播放';
+}
+
+function tick(ts){
+  if (!state.last) state.last = ts;
+  const dt = Math.min(ts - state.last, 150);
+  state.last = ts;
+  const frames = curFrames();
+  if (state.playing && frames.length) {
+    state.acc += dt;
+    let guard = 0, changed = false;
+    while (state.acc >= holdOf(state.idx) && guard++ < 8) {
+      state.acc -= holdOf(state.idx);
+      if (state.idx + 1 < frames.length) {
+        state.idx++;
+      } else if (state.loop) {
+        state.idx = 0;
+      } else {
+        state.playing = false; state.acc = 0; syncPlayBtn(); break;
+      }
+      changed = true;
+    }
+    if (changed) render();
+  }
+  requestAnimationFrame(tick);
+}
+
+/* ---------- 控件 ---------- */
+$('#openBtn').onclick = () => els.fileInput.click();
+$('#pickBtn').onclick = () => els.fileInput.click();
+$('#folderBtn').onclick = () => els.folderInput.click();
+$('#pickFolderBtn').onclick = () => els.folderInput.click();
+$('#clearStore').onclick = async () => {
+  if (state.atlases.length &&
+      !confirm('确定清空所有图集和本地记忆吗？下次打开将不再自动载入。')) return;
+  for (const a of state.atlases) releaseAtlas(a);
+  state.atlases = [];
+  state.currentId = null; state.actionKey = null;
+  state.idx = 0; state.acc = 0; state.playing = false;
+  try { localStorage.removeItem('spriteStudioLast'); } catch (e) {}
+  try { await dbClear(); } catch (e) { toast('清空本地记忆失败：' + (e.message || e)); }
+  renderAtlases(); renderActions(); renderTimeline(); render(); syncPlayBtn();
+  toast('已清空图集和本地记忆', 3000, 'info');
+};
+
+els.fileInput.onchange = e => { loadFiles(e.target.files); els.fileInput.value = ''; };
+els.folderInput.onchange = e => { loadFiles(e.target.files); els.folderInput.value = ''; };
+
+els.playBtn.onclick = () => {
+  if (!curFrames().length) return;
+  state.playing = !state.playing;
+  state.acc = 0;
+  syncPlayBtn();
+};
+els.prevBtn.onclick = () => step(-1);
+els.nextBtn.onclick = () => step(1);
+function step(delta){
+  const n = curFrames().length;
+  if (!n) return;
+  state.idx = (state.idx + delta + n) % n;
+  state.acc = 0;
+  render();
+}
+
+els.fpsRange.oninput = e => {
+  state.fps = parseInt(e.target.value, 10);
+  els.fpsOut.textContent = state.fps + ' fps';
+  state.acc = 0;
+  paintFps();
+  savePrefs();
+  render();
+};
+function paintFps(){
+  const pct = (state.fps - 1) / 59 * 100;
+  els.fpsRange.style.background = `linear-gradient(90deg,var(--accent) 0%,var(--accent) ${pct}%,#2b3542 ${pct}%)`;
+}
+els.modeSel.onchange = e => {
+  state.mode = e.target.value;
+  state.acc = 0;
+  savePrefs();
+  renderTimeline();
+  render();
+};
+els.loopChk.onchange = e => { state.loop = e.target.checked; savePrefs(); };
+els.onionChk.onchange = e => { state.onion = e.target.checked; savePrefs(); render(); };
+
+document.querySelectorAll('#bgSeg button').forEach(b => {
+  b.onclick = () => {
+    state.bg = b.dataset.bg;
+    els.stage.className = 'stage bg-' + state.bg + (els.stage.classList.contains('has-data') ? ' has-data' : '');
+    document.querySelectorAll('#bgSeg button').forEach(x => x.classList.toggle('on', x === b));
+    savePrefs();
+  };
+});
+
+document.addEventListener('keydown', e => {
+  if (/^(INPUT|SELECT|TEXTAREA)$/.test(e.target.tagName)) return;
+  if (e.code === 'Space') { e.preventDefault(); els.playBtn.click(); }
+  else if (e.code === 'ArrowLeft') { e.preventDefault(); step(-1); }
+  else if (e.code === 'ArrowRight') { e.preventDefault(); step(1); }
+});
+
+/* ---------- 拖放（含文件夹） ---------- */
+let dragDepth = 0;
+window.addEventListener('dragenter', e => {
+  if (!e.dataTransfer) return;
+  dragDepth++;
+  els.dropper.classList.add('on');
+});
+window.addEventListener('dragover', e => { e.preventDefault(); });
+window.addEventListener('dragleave', e => {
+  dragDepth = Math.max(0, dragDepth - 1);
+  if (!dragDepth) els.dropper.classList.remove('on');
+});
+window.addEventListener('drop', async e => {
+  e.preventDefault();
+  dragDepth = 0;
+  els.dropper.classList.remove('on');
+  const dt = e.dataTransfer;
+  if (!dt) return;
+  const files = [];
+  const items = [...(dt.items || [])];
+  if (items.length && items[0].webkitGetAsEntry) {
+    for (const it of items) {
+      const entry = it.webkitGetAsEntry && it.webkitGetAsEntry();
+      if (entry) await collectEntry(entry, files);
+    }
+  }
+  if (!files.length && dt.files) files.push(...dt.files);
+  loadFiles(files);
+});
+
+function collectEntry(entry, out){
+  return new Promise(resolve => {
+    if (entry.isFile) {
+      entry.file(f => { out.push(f); resolve(); }, () => resolve());
+    } else if (entry.isDirectory) {
+      const reader = entry.createReader();
+      const readBatch = () => reader.readEntries(async batch => {
+        if (!batch.length) return resolve();
+        for (const e of batch) await collectEntry(e, out);
+        readBatch();
+      }, () => resolve());
+      readBatch();
+    } else resolve();
+  });
+}
+
+/* ---------- 初始化 ---------- */
+if (navigator.storage && navigator.storage.persist) {
+  navigator.storage.persist().catch(() => {});
+}
+els.fpsRange.value = state.fps;
+els.fpsOut.textContent = state.fps + ' fps';
+els.modeSel.value = state.mode;
+els.loopChk.checked = state.loop;
+els.onionChk.checked = state.onion;
+els.stage.className = 'stage bg-' + state.bg;
+document.querySelectorAll('#bgSeg button').forEach(b => b.classList.toggle('on', b.dataset.bg === state.bg));
+paintFps();
+render();
+syncPlayBtn();
+requestAnimationFrame(tick);
+restoreSaved();
+</script>
+</body>
+</html>
