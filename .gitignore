@@ -3,4 +3,5 @@
 frames/
 *.gif
 /*.png
+/*.plist
 viewer.html
